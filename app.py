@@ -1,40 +1,38 @@
 import sys
 import csv
-import sendgrid
 import os
-from sendgrid.helpers.mail import *
 
-sg = sendgrid.SendGridAPIClient(apikey='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')
-
-"""Settings"""
-ROUND_FILE_NAME = "Round 1.csv"
-TEAM_DATA_FILE_NAME = "Team Data.csv"
-
-FROM_EMAIL = "ziggyonlinedebate@gmail.com"
-SUBJECT = "Ziggy Online Debate"
-INFORMATION = "This is a test e-mail."
-ROUND = 1
-
-DEBUG = False
+settings = {
+    'from' : "ziggyonlinedebate@gmail.com",
+    'subject': "Ziggy Online Debate",
+    'information' : "This is a test e-mail.",
+    'round' : '1',
+    'round_file' : 'data/Round 1.csv',
+    'team_file' : 'data/Team Data.csv'
+}
 
 """Main Entry Point"""
 def main(argv):
-    team_data = readCSV( TEAM_DATA_FILE_NAME )
-    this_round = readCSV( ROUND_FILE_NAME )
+    team_data = readCSV( settings['team_file'] )
+    this_round = readCSV( settings['round_file'] )
 
-    if DEBUG:
+    if __debug__:
         print( team_data )
         print( this_round )
 
     for row in this_round:
         room = {
-            'round' : ROUND,
+            'round' : settings['round'],
             'affirmative' : row['AFF'],
             'negative' : row['NEG'],
             'to' : emailsGet(row, team_data)
         }
+
     print(room)
 
+    q=raw_input("press close to exit")
+
+    return 0
 
 """Load a CSV file into an array of dictionaries"""
 def readCSV(file_name):
@@ -43,7 +41,7 @@ def readCSV(file_name):
         reader = csv.DictReader(file)
         for row in reader:
             result.append(row)
-    if DEBUG: print(result)
+    if __debug__: print(result)
     return result
 
 """..."""
@@ -67,44 +65,10 @@ def emailsGet(room, team_data):
                 if row['Email 2']:
                     emails.append( row['Email 2'] )
 
-    if DEBUG:
+    if __debug__:
         print(emails)
+
     return emails
 
 if __name__ == "__main__":
     main(sys.argv)
-
-
-
-
-"""
-this_round = [
-    {
-        'affirmative' : 'Bob Smith',
-        'negative' : 'John Doe'
-    }
-]
-
-room = {
-    'round' : '1',
-    'affirmative' : 'Bob Smith',
-    'negative' : 'John Doe',
-    'to' : 'elijah.schow@gmail.com, mr.glasses.aux@gmail.com, elijah.schow@ethosdebate.com, webmaster@elegantevidence.org'
-}
-
-message = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>\
-                <p>Hello,</p>\
-                <p>Your debate round %s pairing is as follows:<br>\
-                Affirmative %s vs. Negative %s.</p>\
-                <p>%s</p>\
-            </body></html>'\
-            % (room['round'], room['affirmative'], room['negative'],\
-            INFORMATION)
-
-mail = Mail( Email(FROM_EMAIL), SUBJECT, Email(room['to']),\
-    Content('text/html', str(message) ) )
-response = sg.client.mail.send.post(request_body=mail.get())
-print(response.status_code)
-print(response.body)
-print(response.headers)
-"""
