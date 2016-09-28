@@ -1,12 +1,11 @@
-# Ziggy Mass Mailer
+Name: Ziggy Mailer
+Author: Elijah Schow
+Description: Automatically send postings to Ziggy participants.
 
-## Description
-Automatically send postings to Ziggy participants.
+# Table of Contents
 
-## Email Template
-> Hello,
+# Installation
 
-> Your debate Round {{round}} pairing is as follows:
-> Affirmative {{affirmative}} vs. Negative {{negative}}
-
-> {{information}}
+# Required Changes
+  1. Add "Email 1" and "Email 2" to the "Team Data" sheet.
+  2. Export each sheet as a .CSV (comma separated) file.
