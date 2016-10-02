@@ -21,18 +21,10 @@ settings = {
 def main(argv):
     team_data = readCSV( settings['team_file'] )
     this_round = readCSV( settings['round_file'] )
-    if __debug__: print(this_round)
-
-    for row in this_round:
-        recipients = recipientsGet(row, team_data)
-        message = messagePrepare(row, settings)
-        mail = Mail( Email(settings['from']), settings['subject'],\
-                     Email(recipients), Content('text/html', message ) )
-        response = sg.client.mail.send.post(request_body=mail.get())
-        if __debug__:
-            print(response.status_code)
-            print(response.body)
-            print(response.headers)
+    for room in this_round:
+        recipients = recipientsGet(room, team_data)
+        message = messageGet(room, settings)
+        messageSend (message, recipients, settings)
 
     return 0
 
@@ -90,7 +82,7 @@ def concatenate( items ):
 
 
 """Build the email's body"""
-def messagePrepare(row, settings):
+def messageGet(row, settings):
     return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>\
                     <p>Hello,</p>\
                     <p>Your debate round %s pairing is as follows: \
@@ -99,6 +91,17 @@ def messagePrepare(row, settings):
                 </body></html>'\
                 % (settings['round'], row['AFF'],\
                 row['NEG'], settings['information'])
+
+"""Make a request to the sendgrid API"""
+def messageSend(message, recipients, settings):
+    mail = Mail( Email(settings['from']), settings['subject'],\
+                 Email(recipients), Content('text/html', message ) )
+    response = sg.client.mail.send.post(request_body=mail.get())
+    if __debug__:
+        print(response.status_code)
+        print(response.body)
+        print(response.headers)
+    return response
 
 
 """..."""
