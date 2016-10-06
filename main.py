@@ -19,9 +19,11 @@ class ZiggyMailer:
             'subject' : 'Ziggy Debate - Postings',
             'information' : '',
             'round_number' : 1,
-            'round_file' : '',
+            'round_file' : 'data/Round.csv',
             'team_file' : 'data/Team Data.csv',
         }
+        #Define root
+        self.root = root
         # Left column
         self.leftFrame = tk.Frame(root)
         self.leftFrame.grid(row=0, column=0, sticky='NW', padx=(10,5))
@@ -72,7 +74,7 @@ class ZiggyMailer:
         self.teamFileButton.grid(row='5', column=0)
         self.teamFileEntry.grid(row='5', column=1, sticky="NSEW")
         # Submit button
-        self.submitButton = tk.Button(root, text='Send', command=self.submit)
+        self.submitButton = tk.Button(root, text='Send', command=self.submit )
         self.submitButton.grid(stick='WE', row=1,columnspan=2, padx=10, pady=10)
 
     # Update a file name input
@@ -96,8 +98,6 @@ class ZiggyMailer:
 
     # Gather the form's inputs and send emails
     def submit(self):
-        #TODO: assert assumptions about input.
-
         from_email = self.fromEntry.get()
         subject = self.subjectEntry.get()
         information = self.informationText.get('1.0', 'end')
@@ -127,34 +127,30 @@ class ZiggyMailer:
         team_data = self.readCSV( team_file )
         round_data = self.readCSV( round_file )
 
-        keys1 = ["Team", "Email 1", "Email 2"]
-        for key in keys1:
+        keys = ["Team", "Email 1", "Email 2"]
+        for key in keys:
             assert key in team_data[0], 'The team data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
-        keys2 = ["AFF", "NEG"]
-        for key in keys2:
+        keys = ["AFF", "NEG"]
+        for key in keys:
             assert key in round_data[0], 'The round data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
-
-        missing_teams = []
-        participant_count = 0
         room_count = len( round_data )
         assert( room_count < 3000 )
 
+        participant_count = 0
         for room in round_data:
             # Find the e-mails of everyone in this room
-            recipients = ''
-            first = True
+            recipients = []
             for row in team_data:
-                if not first:
-                    recipients += ','
                 if row['Team']==room['AFF'] or row['Team']==room['NEG']:
-                    if 'Email 1' in row and row['Email 1']:
-                            recipients += row['Email 1']
-                            participant_count += 1
-                    if 'Email 2' in row and row['Email 2']:
-                            recipients += row['Email 2']
-                            participant_count += 1
-                first = False
-            assert recipients, 'There are no recipients. Double check the Team File and Round File for errors.'
+                    keys = ['Email 1', 'Email 2']
+                    for key in keys:
+                        # Don't add blank email addresses
+                        if row[key]: recipients.append( row[key] )
+                        participant_count += 1
+            assert len(recipients) > 0, 'There are no recipients. Double check the Team File and Round File for errors.'
+            to_emails = str(recipients).strip('[]').replace('\'', '')
+            if __debug__:print(recipients)
+            if __debug__:print(to_emails)
 
             # Format the message
             message = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>\
@@ -167,14 +163,15 @@ class ZiggyMailer:
                         % (round_number, room['AFF'], room['NEG'], information)
 
             # Send the message
-            mail = Mail( Email(from_email), subject, Email(recipients),
+            mail = Mail( Email(from_email), subject, Email(to_emails),
                 Content('text/html', message ) )
             response = sg.client.mail.send.post(request_body=mail.get())
             if __debug__:
                 print(response.status_code)
                 print(response.body)
                 print(response.headers)
-            return (room_count, participant_count)
+
+        return (room_count, participant_count)
 
 """Main Loop"""
 root = tk.Tk()
