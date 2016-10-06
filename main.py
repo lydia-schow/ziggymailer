@@ -6,23 +6,35 @@ from sendgrid.helpers.mail import *
 
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
+from tkinter import messagebox
 
 sg = sendgrid.SendGridAPIClient(apikey='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')
 
 class ZiggyMailer:
     # Define the GUI
     def __init__(self, root):
+        # Defaults
+        default = {
+            'from_email' : 'ziggyonlinedebate@gmail.com',
+            'subject' : 'Ziggy Debate - Postings',
+            'information' : '',
+            'round_number' : 1,
+            'round_file' : '',
+            'team_file' : 'data/Team Data.csv',
+        }
         # Left column
         self.leftFrame = tk.Frame(root)
         self.leftFrame.grid(row=0, column=0, sticky='NW', padx=(10,5))
         #From Input
+        value = tk.StringVar(root, default['from_email'])
         self.fromLabel = tk.Label(self.leftFrame, text='From')
-        self.fromEntry = tk.Entry(self.leftFrame)
+        self.fromEntry = tk.Entry(self.leftFrame, textvariable=value)
         self.fromLabel.grid(sticky='W', pady=(5,0))
         self.fromEntry.grid(sticky='WE', pady=(0,5))
         # Subject Input
+        value = tk.StringVar(root, default['subject'])
         self.subjectLabel = tk.Label(self.leftFrame, text='Subject')
-        self.subjectEntry = tk.Entry(self.leftFrame)
+        self.subjectEntry = tk.Entry(self.leftFrame, textvariable=value)
         self.subjectLabel.grid(sticky='W', pady=(5,0))
         self.subjectEntry.grid(sticky='WE', pady=(0,5))
         #Information Input
@@ -34,23 +46,28 @@ class ZiggyMailer:
         self.rightFrame = tk.Frame(root)
         self.rightFrame.grid(row=0, column=1, sticky='NW', padx=(5, 10))
         # Round Number Input
+        value = tk.StringVar(root, default['round_number'])
         self.roundLabel = tk.Label(self.rightFrame, text='Round Number')
-        self.roundEntry = tk.Entry(self.rightFrame)
+        self.roundEntry = tk.Entry(self.rightFrame, textvariable=value)
         self.roundLabel.grid(row='0', sticky='W', pady=(5,0), columnspan=2)
         self.roundEntry.grid(row='1', sticky='WE', pady=(0,5), columnspan=2)
         # Round File Input
+        value = tk.StringVar(root, default['round_file'])
         self.roundFileLabel = tk.Label(self.rightFrame, text='Round File (.csv)')
         self.roundFileButton = tk.Button(self.rightFrame, text="Open",
             command=lambda:self.setfilename(self.roundFileEntry))
-        self.roundFileEntry = tk.Entry(self.rightFrame, state='disabled')
+        self.roundFileEntry = tk.Entry(self.rightFrame, state='disabled',
+            textvariable=value)
         self.roundFileLabel.grid(row='2', sticky='W', pady=(5,0), columnspan=2)
         self.roundFileButton.grid(row='3', column=0)
         self.roundFileEntry.grid(row='3', column=1, sticky="NSEW")
         # Team File Input
+        value = tk.StringVar(root, default['team_file'])
         self.teamFileLabel = tk.Label(self.rightFrame, text='Team File (.csv)')
         self.teamFileButton = tk.Button(self.rightFrame, text="Open",
             command=lambda:self.setfilename(self.teamFileEntry))
-        self.teamFileEntry = tk.Entry(self.rightFrame, state='disabled')
+        self.teamFileEntry = tk.Entry(self.rightFrame, state='disabled',
+            textvariable=value)
         self.teamFileLabel.grid(row='4', sticky='W', pady=(5,0), columnspan=2)
         self.teamFileButton.grid(row='5', column=0)
         self.teamFileEntry.grid(row='5', column=1, sticky="NSEW")
@@ -88,37 +105,62 @@ class ZiggyMailer:
         round_file = self.roundFileEntry.get()
         team_file = self.teamFileEntry.get()
 
-        self.sendmail(from_email, subject, information, round_number,
-            round_file, team_file )
+        try:
+            result = self.sendmail(from_email, subject, information,
+            round_number, round_file, team_file )
+        except  AssertionError as error:
+            print (error)
+            tk.messagebox.showerror('Error', error)
+
+        tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i participants.'
+            % (result[0], result[1]) )
 
     # E-mail postings to all the participants
     def sendmail( self, from_email, subject, information, round_number,
         round_file, team_file ):
-        #TODO: assert assumptions about input.
+        assert os.path.isfile(team_file), 'The Team Data file does not exist. Make sure one is selected.'
+        assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
+        assert from_email, 'There is no "from" address. Please specify one.'
+        assert subject, 'The subject is empty. Please write a suject line.'
+        assert round_number, 'There is no round number. Please specify one.'
+
         team_data = self.readCSV( team_file )
-        this_round = self.readCSV( round_file )
-        for room in this_round:
+        round_data = self.readCSV( round_file )
+
+        keys1 = ["Team", "Email 1", "Email 2"]
+        for key in keys1:
+            assert key in team_data[0], 'The team data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
+        keys2 = ["AFF", "NEG"]
+        for key in keys2:
+            assert key in round_data[0], 'The round data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
+
+        missing_teams = []
+        participant_count = 0
+        room_count = len( round_data )
+        assert( room_count < 3000 )
+
+        for room in round_data:
             # Find the e-mails of everyone in this room
-            recipients = ""
+            recipients = ''
             first = True
             for row in team_data:
                 if not first:
-                    recipients += ","
-                else:
-                    if row['Team']==room['AFF'] or row['Team']==room['NEG']:
-                        if 'Email 1' in row:
-                            if row['Email 1']:
-                                recipients += row['Email 1']
-                        if 'Email 2' in row:
-                            if row['Email 2']:
-                                recipients += row['Email 2']
-                    first = False
+                    recipients += ','
+                if row['Team']==room['AFF'] or row['Team']==room['NEG']:
+                    if 'Email 1' in row and row['Email 1']:
+                            recipients += row['Email 1']
+                            participant_count += 1
+                    if 'Email 2' in row and row['Email 2']:
+                            recipients += row['Email 2']
+                            participant_count += 1
+                first = False
+            assert recipients, 'There are no recipients. Double check the Team File and Round File for errors.'
 
             # Format the message
             message = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>\
                        <body>\
                             <p>Hello,</p>\
-                            <p>Your debate round %i pairing is as follows: \
+                            <p>Your debate round %r pairing is as follows: \
                             Affirmative %s vs. Negative %s.</p>\
                             <p>%s</p>\
                         </body></html>'\
@@ -132,8 +174,10 @@ class ZiggyMailer:
                 print(response.status_code)
                 print(response.body)
                 print(response.headers)
+            return (room_count, participant_count)
 
 """Main Loop"""
 root = tk.Tk()
+root.wm_title('Ziggy Mailer')
 app = ZiggyMailer(root)
 root.mainloop()
