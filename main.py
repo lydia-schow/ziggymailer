@@ -1,7 +1,10 @@
 import os
 import csv
+from urllib.error import HTTPError
+
 import sendgrid
 from sendgrid.helpers.mail import *
+
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
 from tkinter import messagebox
@@ -103,14 +106,18 @@ class ZiggyMailer:
         round_number = int(self.roundEntry.get())
         round_file = self.roundFileEntry.get()
         team_file = self.teamFileEntry.get()
-
         try:
             result = self.sendmail(from_email, subject, information,
             round_number, round_file, team_file )
-        except  AssertionError as error:
-            print (error)
+        except AssertionError as error:
             tk.messagebox.showerror('Error', error)
-
+        except HTTPError as error:
+            message = error.msg
+            if error.code == 401:
+                message = 'SendGrid rejected your request. Make sure you are using a valid API key.'
+            elif error.code == 404:
+                message = 'SendGrid\'s server could not be found. Check if their servers are down for maintenance.'
+            tk.messagebox.showerror('Error', message)
         tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i participants.'
             % (result[0], result[1]) )
 
@@ -127,7 +134,6 @@ class ZiggyMailer:
 
         team_data = self.readCSV( team_file )
         round_data = self.readCSV( round_file )
-
         keys = ["Team", "Email 1", "Email 2"]
         for key in keys:
             assert key in team_data[0], 'The team data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
@@ -177,7 +183,7 @@ class ZiggyMailer:
                 print(response.headers)
 
         return (room_count, participant_count)
-        
+
 """Main Loop"""
 root = tk.Tk()
 root.wm_title('Ziggy Mailer')
