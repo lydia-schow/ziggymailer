@@ -1,14 +1,13 @@
-import sys
-import csv
 import os
+import csv
 import sendgrid
 from sendgrid.helpers.mail import *
-
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
 from tkinter import messagebox
 
-sg = sendgrid.SendGridAPIClient(apikey='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')
+from config import SENDGRID_API_KEY
+sg = sendgrid.SendGridAPIClient(apikey=SENDGRID_API_KEY)
 
 class ZiggyMailer:
     # Define the GUI
@@ -122,6 +121,8 @@ class ZiggyMailer:
         assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
         assert from_email, 'There is no "from" address. Please specify one.'
         assert subject, 'The subject is empty. Please write a suject line.'
+        assert len(subject) < 78, 'The subject must be fewer than 78 characters long. Please shorten it.'
+            # A restriction imposed by the SendGrid API.
         assert round_number, 'There is no round number. Please specify one.'
 
         team_data = self.readCSV( team_file )
@@ -148,6 +149,7 @@ class ZiggyMailer:
                         if row[key]: recipients.append( row[key] )
                         participant_count += 1
             assert len(recipients) > 0, 'There are no recipients. Double check the Team File and Round File for errors.'
+            assert len(recipients) < 10000, 'There must be fewer than 10,000 recipients per room.'
             to_emails = str(recipients).strip('[]').replace('\'', '')
             if __debug__:print(recipients)
             if __debug__:print(to_emails)
