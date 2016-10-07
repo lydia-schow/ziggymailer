@@ -165,8 +165,11 @@ class ZiggyMailer:
                         % (round_number, room['AFF'], room['NEG'], information)
 
             # Send the message
-            mail = Mail( Email(from_email), subject, Email(to_emails),
-                Content('text/html', message ) )
+            mail = Mail( from_email = Email(from_email),
+                         subject = subject,
+                         to_email = Email(to_emails),
+                         content = Content('text/html', message )
+                        )
             response = sg.client.mail.send.post(request_body=mail.get())
             if __debug__:
                 print(response.status_code)
@@ -174,7 +177,7 @@ class ZiggyMailer:
                 print(response.headers)
 
         return (room_count, participant_count)
-
+        
 """Main Loop"""
 root = tk.Tk()
 root.wm_title('Ziggy Mailer')
