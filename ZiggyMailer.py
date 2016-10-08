@@ -2,16 +2,18 @@ import os
 import csv
 import configparser as cfg
 from urllib.error import HTTPError
+
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
 from tkinter import messagebox
 import sendgrid
 from sendgrid.helpers.mail import *
 
+
 class ZiggyMailer:
-    # Define the GUI
     def __init__(self, root):
-        # Defaults
+        """Initialize the GUI application"""
+        # Load defaults
         config = cfg.ConfigParser()
         config.read('settings.ini')
         default = {
@@ -23,14 +25,13 @@ class ZiggyMailer:
             'round_file' : config['values']['RoundFile'],
             'team_file' : config['values']['TeamFile']
         }
-        #SendGrid
-        sg = sendgrid.SendGridAPIClient(apikey=config['sendgrid']['APIKey'])
-        #Define root
+        # Initialize GUI
         self.root = root
+        self.root.wm_title('Ziggy Mailer')
         # Left column
         self.leftFrame = tk.Frame(root)
         self.leftFrame.grid(row=0, column=0, sticky='NW', padx=(10,5))
-        #From Input
+        # From Input
         value = tk.StringVar(root, default['from_email'])
         self.fromLabel = tk.Label(self.leftFrame, text='From')
         self.fromEntry = tk.Entry(self.leftFrame, textvariable=value)
@@ -86,8 +87,8 @@ class ZiggyMailer:
         self.submitButton = tk.Button(root, text='Send', command=self.submit )
         self.submitButton.grid(stick='WE', row=1,columnspan=2, padx=10, pady=10)
 
-    # Update a file name input
     def setfilename(self, target):
+        """Update a file name input"""
         # TODO: assert that 'target' is an instance of tk.Entry
         filename = askopenfilename(filetypes=[('Comma Separated Values', '*.csv')])
         target.configure(state = 'normal') # text can't be edited if it's disabled
@@ -96,8 +97,8 @@ class ZiggyMailer:
         target.xview('end')
         target.configure(state = 'disabled')
 
-    # Load a CSV file into a Python data structure
     def readCSV(self, file_name):
+        """Load a CSV file into a Python data structure"""
         result = []
         with open(file_name, 'r') as file:
             reader = csv.DictReader(file)
@@ -105,8 +106,8 @@ class ZiggyMailer:
                 result.append(room)
         return result
 
-    # Gather the form's inputs and send emails
     def submit(self):
+        """Gather the form's inputs and send emails"""
         from_email = self.fromEntry.get()
         reply_to = self.replyToEntry.get()
         subject = self.subjectEntry.get()
@@ -114,6 +115,7 @@ class ZiggyMailer:
         round_number = int(self.roundEntry.get())
         round_file = self.roundFileEntry.get()
         team_file = self.teamFileEntry.get()
+
         try:
             result = self.sendmail(from_email, reply_to, subject, information,
             round_number, round_file, team_file )
@@ -129,17 +131,16 @@ class ZiggyMailer:
         tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i participants.'
             % (result[0], result[1]) )
 
-    # E-mail postings to all the participants
     def sendmail( self, from_email, reply_to, subject, information, round_number,
         round_file, team_file ):
+        """Send postings to each participant in each room."""
         assert os.path.isfile(team_file), 'The Team Data file does not exist. Make sure one is selected.'
         assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
         assert from_email, 'There is no "From" address. Please specify one.'
         assert subject, 'The subject is empty. Please write a suject line.'
-        assert len(subject) < 78, 'The subject must be fewer than 78 characters long. Please shorten it.'
-            # A restriction imposed by the SendGrid API.
+        assert len(subject) < 78, 'The subject must be fewer than 78 characters long. Please shorten it.'  # Required by the SendGrid API
         assert round_number, 'There is no round number. Please specify one.'
-
+        # Read CSV files
         team_data = self.readCSV( team_file )
         round_data = self.readCSV( round_file )
         keys = ["Team", "Email 1", "Email 2"]
@@ -150,10 +151,9 @@ class ZiggyMailer:
             assert key in round_data[0], 'The round data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
         room_count = len( round_data )
         assert( room_count < 3000 )
-
+        # Parse CSV files
         participant_count = 0
         for room in round_data:
-            # Find the e-mails of everyone in this room
             recipients = []
             for row in team_data:
                 if row['Team']==room['AFF'] or row['Team']==room['NEG']:
@@ -167,22 +167,16 @@ class ZiggyMailer:
             to_emails = str(recipients).strip('[]').replace('\'', '')
             if __debug__:print(recipients)
             if __debug__:print(to_emails)
-
             # Format the message
-            message = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>\
-                       <body>\
-                            <p>Hello,</p>\
-                            <p>Your debate round %r pairing is as follows: \
-                            Affirmative %s vs. Negative %s.</p>\
-                            <p>%s</p>\
-                        </body></html>'\
-                        % (round_number, room['AFF'], room['NEG'], information)
-
+            message = '>Hello,\
+Your debate round %r pairing is as follows:\
+Affirmative %s vs. Negative %s.\
+%s' % (round_number, room['AFF'], room['NEG'], information)
             # Send the message
             mail = Mail( from_email = Email(from_email),
                          subject = subject,
                          to_email = Email(to_emails),
-                         content = Content('text/html', message )
+                         content = Content('text/plain', message )
                         )
             if reply_to: mail.set_reply_to( Email(reply_to) )
             response = sg.client.mail.send.post(request_body=mail.get())
@@ -190,11 +184,14 @@ class ZiggyMailer:
                 print(response.status_code)
                 print(response.body)
                 print(response.headers)
-
         return (room_count, participant_count)
 
+
 """Main Loop"""
+config = cfg.ConfigParser()
+config.read('settings.ini')
+sg = sendgrid.SendGridAPIClient(apikey=config['sendgrid']['APIKey'])
 root = tk.Tk()
-root.wm_title('Ziggy Mailer')
 app = ZiggyMailer(root)
+
 root.mainloop()
