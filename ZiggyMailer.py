@@ -1,30 +1,30 @@
 import os
 import csv
+import configparser as cfg
 from urllib.error import HTTPError
-
-import sendgrid
-from sendgrid.helpers.mail import *
-
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
 from tkinter import messagebox
-
-from config import SENDGRID_API_KEY
-sg = sendgrid.SendGridAPIClient(apikey=SENDGRID_API_KEY)
+import sendgrid
+from sendgrid.helpers.mail import *
 
 class ZiggyMailer:
     # Define the GUI
     def __init__(self, root):
         # Defaults
+        config = cfg.ConfigParser()
+        config.read('settings.ini')
         default = {
-            'from_email' : 'ziggyonlinedebate@gmail.com',
-            'reply_to' : 'ziggy.online.debate@gmail.com',
-            'subject' : 'Ziggy Debate - Postings',
-            'information' : '',
-            'round_number' : 1,
-            'round_file' : 'data/Round.csv',
-            'team_file' : 'data/Team Data.csv',
+            'from_email' : config['values']['FromEmail'],
+            'reply_to' : config['values']['ReplyTo'],
+            'subject' : config['values']['Subject'],
+            'information' : config['values']['Information'],
+            'round_number' : config['values']['RoundNumber'],
+            'round_file' : config['values']['RoundFile'],
+            'team_file' : config['values']['TeamFile']
         }
+        #SendGrid
+        sg = sendgrid.SendGridAPIClient(apikey=config['sendgrid']['APIKey'])
         #Define root
         self.root = root
         # Left column

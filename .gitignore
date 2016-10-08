@@ -1,7 +1,5 @@
 *.pyc
+*.ini
 __pycache__
-*.spec
-misc
-build
 dist
-config.py
+build
