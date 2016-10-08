@@ -30,7 +30,7 @@
     A. Download the project and extract it somewhere convenient
     B. Open the terminal and navigate to the extracted project
     C. Run pyinstaller to generate a .app file
-    > pyinstaller ZiggyMailer.py -F
+    > pyinstaller ZiggyMailer.py --onefile --noconsole
 
 6. Test the application
     A. Open file exporer and find the project's folder
