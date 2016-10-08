@@ -9,6 +9,9 @@ from tkinter import messagebox
 import sendgrid
 from sendgrid.helpers.mail import *
 
+class Parameter(dict):
+    def __missing__(self, key):
+        return '{' + key + '}'
 
 class ZiggyMailer:
     def __init__(self, root):
@@ -20,7 +23,7 @@ class ZiggyMailer:
             'from_email' : config['values']['FromEmail'],
             'reply_to' : config['values']['ReplyTo'],
             'subject' : config['values']['Subject'],
-            'information' : config['values']['Information'],
+            'body' : config['values']['Body'],
             'round_number' : config['values']['RoundNumber'],
             'round_file' : config['values']['RoundFile'],
             'team_file' : config['values']['TeamFile']
@@ -49,11 +52,13 @@ class ZiggyMailer:
         self.subjectEntry = tk.Entry(self.leftFrame, textvariable=value)
         self.subjectLabel.grid(sticky='W', pady=(5,0), columnspan=2)
         self.subjectEntry.grid(sticky='WE', pady=(0,5), columnspan=2)
-        #Information Input
-        self.informationLabel = tk.Label(self.leftFrame, text='Information')
-        self.informationText = tk.Text(self.leftFrame)
-        self.informationLabel.grid(sticky='W', pady=(5,0), columnspan=2)
-        self.informationText.grid(sticky='WE', pady=(0,5), columnspan=2)
+        #Body Input
+        self.bodyLabel = tk.Label(self.leftFrame, text='Body')
+        self.bodyText = tk.Text(self.leftFrame, )
+        self.bodyLabel.grid(sticky='W', pady=(5,0), columnspan=2)
+        self.bodyText.grid(sticky='WE', pady=(0,5), columnspan=2)
+        for line in default['body'].split('\\n'):
+            self.bodyText.insert( 'end', line + '\n')
         # Right column
         self.rightFrame = tk.Frame(root)
         self.rightFrame.grid(row=0, column=1, sticky='NW', padx=(5, 10))
@@ -111,13 +116,13 @@ class ZiggyMailer:
         from_email = self.fromEntry.get()
         reply_to = self.replyToEntry.get()
         subject = self.subjectEntry.get()
-        information = self.informationText.get('1.0', 'end')
+        body = self.bodyText.get('1.0', 'end')
         round_number = int(self.roundEntry.get())
         round_file = self.roundFileEntry.get()
         team_file = self.teamFileEntry.get()
 
         try:
-            result = self.sendmail(from_email, reply_to, subject, information,
+            result = self.sendmail(from_email, reply_to, subject, body,
             round_number, round_file, team_file )
         except AssertionError as error:
             tk.messagebox.showerror('Error', error)
@@ -131,9 +136,10 @@ class ZiggyMailer:
         tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i participants.'
             % (result[0], result[1]) )
 
-    def sendmail( self, from_email, reply_to, subject, information, round_number,
+    def sendmail( self, from_email, reply_to, subject, body, round_number,
         round_file, team_file ):
         """Send postings to each participant in each room."""
+        #Assertions
         assert os.path.isfile(team_file), 'The Team Data file does not exist. Make sure one is selected.'
         assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
         assert from_email, 'There is no "From" address. Please specify one.'
@@ -168,10 +174,12 @@ class ZiggyMailer:
             if __debug__:print(recipients)
             if __debug__:print(to_emails)
             # Format the message
-            message = '>Hello,\
-Your debate round %r pairing is as follows:\
-Affirmative %s vs. Negative %s.\
-%s' % (round_number, room['AFF'], room['NEG'], information)
+            parameters = {
+                'round' : round_number,
+                'aff' : room['AFF'],
+                'neg' : room['AFF'],
+            }
+            message = body.format_map(Parameter(parameters))
             # Send the message
             mail = Mail( from_email = Email(from_email),
                          subject = subject,
