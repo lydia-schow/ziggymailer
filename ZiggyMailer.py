@@ -157,7 +157,7 @@ class ZiggyMailer:
             assert key in round_data[0], 'The round data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
         room_count = len( round_data )
         assert( room_count < 3000 )
-        # Parse CSV files
+        # Parse CSV files and send messages
         participant_count = 0
         for room in round_data:
             recipients = []
@@ -177,7 +177,7 @@ class ZiggyMailer:
             parameters = {
                 'round' : round_number,
                 'aff' : room['AFF'],
-                'neg' : room['AFF'],
+                'neg' : room['NEG'],
             }
             message = body.format_map(Parameter(parameters))
             # Send the message
