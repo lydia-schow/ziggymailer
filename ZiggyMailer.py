@@ -112,6 +112,7 @@ class ZiggyMailer:
         return result
 
     def submit(self):
+
         """Gather the form's inputs and send emails"""
         from_email = self.fromEntry.get()
         reply_to = self.replyToEntry.get()
@@ -171,8 +172,6 @@ class ZiggyMailer:
             assert len(recipients) > 0, 'There are no recipients. Double check the Team File and Round File for errors.'
             assert len(recipients) < 10000, 'There must be fewer than 10,000 recipients per room.'
             to_emails = str(recipients).strip('[]').replace('\'', '')
-            if __debug__:print(recipients)
-            if __debug__:print(to_emails)
             # Format the message
             parameters = {
                 'round' : round_number,
@@ -189,6 +188,14 @@ class ZiggyMailer:
             if reply_to: mail.set_reply_to( Email(reply_to) )
             response = sg.client.mail.send.post(request_body=mail.get())
             if __debug__:
+                print('\n\n------')
+                print('\nPARAMETERS')
+                for key in parameters:
+                    print('%s : %r' % (str(key), parameters[key] ),
+                        logfile )
+                print('\nRECIPIENTS:')
+                for item in recipients: print(item)
+                print('\nRESPONSE:')
                 print(response.status_code)
                 print(response.body)
                 print(response.headers)
@@ -198,7 +205,7 @@ class ZiggyMailer:
 """Main Loop"""
 config = cfg.ConfigParser()
 config.read('settings.ini')
-sg = sendgrid.SendGridAPIClient(apikey=config['sendgrid']['APIKey'])
+sg = sendgrid.SendGridAPIClient(apikey=config['general']['APIKey'])
 root = tk.Tk()
 app = ZiggyMailer(root)
 
