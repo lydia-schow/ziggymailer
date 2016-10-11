@@ -1,3 +1,4 @@
+# coding=utf-8
 import os
 import csv
 import configparser as cfg
@@ -102,18 +103,8 @@ class ZiggyMailer:
         target.xview('end')
         target.configure(state = 'disabled')
 
-    def readCSV(self, file_name):
-        """Load a CSV file into a Python data structure"""
-        result = []
-        with open(file_name, 'r') as file:
-            reader = csv.DictReader(file)
-            for room in reader:
-                result.append(room)
-        return result
-
     def submit(self):
-
-        """Gather the form's inputs and send emails"""
+        """Send postings to each room."""
         from_email = self.fromEntry.get()
         reply_to = self.replyToEntry.get()
         subject = self.subjectEntry.get()
@@ -123,84 +114,112 @@ class ZiggyMailer:
         team_file = self.teamFileEntry.get()
 
         try:
-            result = self.sendmail(from_email, reply_to, subject, body,
-            round_number, round_file, team_file )
-        except AssertionError as error:
-            tk.messagebox.showerror('Error', error)
-        except HTTPError as error:
-            message = error.msg
-            if error.code == 401:
-                message = 'SendGrid rejected your request. Make sure you are using a valid API key.'
-            elif error.code == 404:
-                message = 'SendGrid\'s server could not be found. Check if their servers are down for maintenance.'
-            tk.messagebox.showerror('Error', message)
-        tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i participants.'
-            % (result[0], result[1]) )
+            assert from_email, 'There is no "From" address. Please specify one.'
+            assert subject, 'The subject is empty. Please write a suject line.'
+            assert len(subject) < 78, 'The subject must be fewer than 78 characters long. Please shorten it.'  # Required by the SendGrid API
+            assert round_number, 'There is no round number. Please specify one.'
 
-    def sendmail( self, from_email, reply_to, subject, body, round_number,
-        round_file, team_file ):
-        """Send postings to each participant in each room."""
-        #Assertions
-        assert os.path.isfile(team_file), 'The Team Data file does not exist. Make sure one is selected.'
-        assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
-        assert from_email, 'There is no "From" address. Please specify one.'
-        assert subject, 'The subject is empty. Please write a suject line.'
-        assert len(subject) < 78, 'The subject must be fewer than 78 characters long. Please shorten it.'  # Required by the SendGrid API
-        assert round_number, 'There is no round number. Please specify one.'
-        # Read CSV files
-        team_data = self.readCSV( team_file )
-        round_data = self.readCSV( round_file )
-        keys = ["Team", "Email 1", "Email 2"]
-        for key in keys:
-            assert key in team_data[0], 'The team data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
-        keys = ["AFF", "NEG"]
-        for key in keys:
-            assert key in round_data[0], 'The round data file is not formatted correctly. Make sure it contains this column (case-sensitive): "%s"' % key
-        room_count = len( round_data )
-        assert( room_count < 3000 )
-        # Parse CSV files and send messages
-        participant_count = 0
-        for room in round_data:
-            recipients = []
-            for row in team_data:
-                if row['Team']==room['AFF'] or row['Team']==room['NEG']:
-                    keys = ['Email 1', 'Email 2']
-                    for key in keys:
-                        # Don't add blank email addresses
-                        if row[key]: recipients.append( row[key] )
-                        participant_count += 1
-            assert len(recipients) > 0, 'There are no recipients. Double check the Team File and Round File for errors.'
-            assert len(recipients) < 10000, 'There must be fewer than 10,000 recipients per room.'
-            to_emails = str(recipients).strip('[]').replace('\'', '')
-            # Format the message
-            parameters = {
-                'round' : round_number,
-                'aff' : room['AFF'],
-                'neg' : room['NEG'],
-            }
-            message = body.format_map(Parameter(parameters))
-            # Send the message
             mail = Mail( from_email = Email(from_email),
                          subject = subject,
-                         to_email = Email(to_emails),
-                         content = Content('text/plain', message )
+                         to_email = Email('user@server.com','Firstname Lastname'), # This is a work around. The API malfunctions if you set this to "none".
+                         content = Content('text/plain', body )
                         )
-            if reply_to: mail.set_reply_to( Email(reply_to) )
+
+            this_round = Round(round_number, round_file, team_file)
+
+            assert this_round.countRooms() <= 1000, 'There are %i rooms, but the SendGrid API only allows up to 1,000 at once. Reduce the number of rooms.' % this_round.countRooms()
+
+            for room in this_round.rooms:
+                pers = Personalization()
+                for participant in room.participants:
+                    pers.add_to(participant)
+                pers.add_substitution( Substitution('[aff]', room.affirmative) )
+                pers.add_substitution( Substitution('[neg]', room.negative) )
+                pers.add_substitution( Substitution('[round]', str(this_round.number) ) )
+                mail.add_personalization(pers)
+            del mail.personalizations[0]  # Remove the dummy address from the workaround.
+
             response = sg.client.mail.send.post(request_body=mail.get())
             if __debug__:
-                print('\n\n------')
-                print('\nPARAMETERS')
-                for key in parameters:
-                    print('%s : %r' % (str(key), parameters[key] ),
-                        logfile )
-                print('\nRECIPIENTS:')
-                for item in recipients: print(item)
-                print('\nRESPONSE:')
                 print(response.status_code)
                 print(response.body)
                 print(response.headers)
-        return (room_count, participant_count)
 
+            room_count = len(this_round.rooms)
+            tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i participants.' % ( this_round.countRooms(), this_round.countParticipants() ) )
+
+        except AssertionError as error:
+            tk.messagebox.showerror('Error', error)
+        except HTTPError as error:
+            tk.messagebox.showerror('Error', '%s (HTTP %i)' % (error.msg, error.code) )
+        except Exception as error:
+            tk.messagebox.showerror('Error', error )
+
+class Round:
+    """Represents one debate round in the tournament"""
+    def __init__(self, number, round_file, team_file):
+        self.number = number
+
+        assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
+        round_data = readCSV(round_file)
+        assert 'AFF' in round_data[0] and\
+               'NEG' in round_data[0],\
+               'The round data file is not formatted correctly. Make sure it contains these columns (case-sensive): "AFF", and "NEG".'
+
+        assert os.path.isfile(team_file), 'The Round File does not exist. Make sure one is selected.'
+        team_data = readCSV(team_file)
+        assert 'Team' in team_data[0] and\
+               'First Name 1' in team_data[0] and\
+               'Last Name 1' in team_data[0] and\
+               'Email 1' in team_data[0] and\
+               'First Name 2' in team_data[0] and\
+               'Last Name 2' in team_data[0] and\
+               'Email 2' in team_data[0],\
+               'The team data file is not formatted correctly. Make sure it contains these columns (case-sensive): "Team", "First Name 1", "Last Name 1", "Email 1", "First Name 2", "Last Name 2", "Email 2".'
+
+        self.rooms = []
+        for round_row in round_data:
+            affirmative = round_row['AFF']
+            negative = round_row['NEG']
+            participants = []
+            for team_row in team_data:
+                if team_row['Team'] == affirmative or team_row['Team'] == negative:
+                    name1 = team_row['First Name 1'] + ' ' + team_row['Last Name 1']
+                    email1 = team_row['Email 1']
+                    if email1: participants.append( Email(email1, name1) )
+                    name2 = team_row['First Name 2'] + ' ' + team_row['Last Name 2']
+                    email2 = team_row['Email 2']
+                    if email2: participants.append( Email(email2, name2) )
+            room = Room(affirmative, negative, participants)
+            self.rooms.append(room)
+
+    def countRooms(self):
+        return len(self.rooms)
+
+    def countParticipants(self):
+        result = 0
+        for room in self.rooms:
+            result += len(room.participants)
+        return result
+
+
+class Room:
+    """Represents a single room in a round."""
+    def __init__(self, affirmative, negative, participants):
+        self.affirmative = affirmative
+        self.negative = negative
+        self.participants = participants
+
+
+def readCSV(file_name):
+    """Load a CSV file into a Python data structure"""
+    result = []
+    with open(file_name, 'r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            result.append(row)
+        file.close()
+    return result
 
 """Main Loop"""
 config = cfg.ConfigParser()
