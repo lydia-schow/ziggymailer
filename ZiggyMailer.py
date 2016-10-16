@@ -146,7 +146,7 @@ class ZiggyMailer:
                 print(response.headers)
 
             room_count = len(this_round.rooms)
-            tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i participants.' % ( this_round.countRooms(), this_round.countParticipants() ) )
+            tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i e-mail addresses.' % ( this_round.countRooms(), this_round.countParticipants() ) )
 
         except AssertionError as error:
             tk.messagebox.showerror('Error', error)
@@ -174,8 +174,10 @@ class Round:
                'Email 1' in team_data[0] and\
                'First Name 2' in team_data[0] and\
                'Last Name 2' in team_data[0] and\
-               'Email 2' in team_data[0],\
-               'The team data file is not formatted correctly. Make sure it contains these columns (case-sensive): "Team", "First Name 1", "Last Name 1", "Email 1", "First Name 2", "Last Name 2", "Email 2".'
+               'Email 2' in team_data[0] and\
+               'Email 3' in team_data[0] and\
+               'Email 4' in team_data[0],\
+               'The team data file is not formatted correctly. Make sure it contains these columns (case-sensive): "Team", "First Name 1", "Last Name 1", "Email 1", "First Name 2", "Last Name 2", "Email 2", "Email 3", and "Email 4".'
 
         self.rooms = []
         for round_row in round_data:
@@ -186,10 +188,19 @@ class Round:
                 if team_row['Team'] == affirmative or team_row['Team'] == negative:
                     name1 = team_row['First Name 1'] + ' ' + team_row['Last Name 1']
                     email1 = team_row['Email 1']
+
                     if email1: participants.append( Email(email1, name1) )
                     name2 = team_row['First Name 2'] + ' ' + team_row['Last Name 2']
                     email2 = team_row['Email 2']
                     if email2: participants.append( Email(email2, name2) )
+
+                    # Emails 3 and 4 are for parents
+                    email3 = team_row['Email 3']
+                    if email3: participants.append( Email(email3) )
+
+                    email4 = team_row['Email 4']
+                    if email4: participants.append( Email(email4) )
+
             room = Room(affirmative, negative, participants)
             self.rooms.append(room)
 
