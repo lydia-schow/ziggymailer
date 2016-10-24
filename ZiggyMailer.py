@@ -69,7 +69,7 @@ class ZiggyMailer:
         value = tk.StringVar(root, default['round_file'])
         self.roundFileLabel = tk.Label(self.rightFrame, text='Round File (.csv)')
         self.roundFileButton = tk.Button(self.rightFrame, text="Open",
-            command=lambda:self.setfilename(self.roundFileEntry))
+            command=lambda:self.set_filename(self.roundFileEntry))
         self.roundFileEntry = tk.Entry(self.rightFrame, state='disabled',
             textvariable=value)
         self.roundFileLabel.grid(row='2', sticky='W', pady=(5,0), columnspan=2)
@@ -79,7 +79,7 @@ class ZiggyMailer:
         value = tk.StringVar(root, default['team_file'])
         self.teamFileLabel = tk.Label(self.rightFrame, text='Team File (.csv)')
         self.teamFileButton = tk.Button(self.rightFrame, text="Open",
-            command=lambda:self.setfilename(self.teamFileEntry))
+            command=lambda:self.set_filename(self.teamFileEntry))
         self.teamFileEntry = tk.Entry(self.rightFrame, state='disabled',
             textvariable=value)
         self.teamFileLabel.grid(row='4', sticky='W', pady=(5,0), columnspan=2)
@@ -89,7 +89,7 @@ class ZiggyMailer:
         self.submitButton = tk.Button(root, text='Send', command=self.submit )
         self.submitButton.grid(stick='WE', row=1,columnspan=2, padx=10, pady=10)
 
-    def setfilename(self, target):
+    def set_filename(self, target):
         """Update a file name input"""
         # TODO: assert that 'target' is an instance of tk.Entry
         filename = askopenfilename(filetypes=[('Comma Separated Values', '*.csv')])
@@ -122,7 +122,7 @@ class ZiggyMailer:
                         )
 
             this_round = Round(round_number, round_file, team_file)
-            assert this_round.countRooms() <= 1000, 'There are %i rooms, but the SendGrid API only allows up to 1,000 at once. Reduce the number of rooms.' % this_round.countRooms()
+            assert this_round.count_rooms() <= 1000, 'There are %i rooms, but the SendGrid API only allows up to 1,000 at once. Reduce the number of rooms.' % this_round.count_rooms()
 
             for room in this_round.rooms:
                 pers = Personalization()
@@ -147,7 +147,7 @@ class ZiggyMailer:
                 print(response.headers)
 
             room_count = len(this_round.rooms)
-            tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i e-mail addresses.' % ( this_round.countRooms(), this_round.countParticipants() ) )
+            tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i e-mail addresses.' % ( this_round.count_rooms(), this_round.count_emails() ) )
 
         except AssertionError as error:
             tk.messagebox.showerror('Error', error)
@@ -162,13 +162,13 @@ class Round:
         self.number = number
 
         assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
-        round_data = readCSV(round_file)
+        round_data = read_csv(round_file)
         assert 'AFF' in round_data[0] and\
                'NEG' in round_data[0],\
                'The round data file is not formatted correctly. Make sure it contains these columns (case-sensive): "AFF", and "NEG".'
 
         assert os.path.isfile(team_file), 'The Round File does not exist. Make sure one is selected.'
-        team_data = readCSV(team_file)
+        team_data = read_csv(team_file)
         assert 'Team' in team_data[0] and\
                'First Name 1' in team_data[0] and\
                'Last Name 1' in team_data[0] and\
@@ -202,10 +202,13 @@ class Round:
             room = Room(affirmative, negative, participants)
             self.rooms.append(room)
 
-    def countRooms(self):
+    def count_rooms(self):
+        """Count the number of rooms in a round."""
         return len(self.rooms)
 
-    def countParticipants(self):
+    def count_emails(self):
+        """Count the number of e-mail addresses that this room's postings will
+        be sent to."""
         result = 0
         for room in self.rooms:
             result += len(room.participants)
@@ -220,7 +223,7 @@ class Room:
         self.participants = participants
 
 
-def readCSV(file_name):
+def read_csv(file_name):
     """Load a CSV file into a Python data structure"""
     result = []
     with open(file_name, 'r') as file:
@@ -234,7 +237,7 @@ def readCSV(file_name):
 config = cfg.ConfigParser()
 config.read('settings.ini')
 sg = sendgrid.SendGridAPIClient(apikey=config['general']['APIKey'])
+
 root = tk.Tk()
 app = ZiggyMailer(root)
-
 root.mainloop()
