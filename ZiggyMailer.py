@@ -10,10 +10,6 @@ from tkinter import messagebox
 import sendgrid
 from sendgrid.helpers.mail import *
 
-class Parameter(dict):
-    def __missing__(self, key):
-        return '{' + key + '}'
-
 class ZiggyMailer:
     def __init__(self, root):
         """Initialize the GUI application"""
