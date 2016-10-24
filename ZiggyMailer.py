@@ -109,7 +109,7 @@ class ZiggyMailer:
         reply_to = self.replyToEntry.get()
         subject = self.subjectEntry.get()
         body = self.bodyText.get('1.0', 'end')
-        round_number = int(self.roundEntry.get())
+        round_number = str(self.roundEntry.get())
         round_file = self.roundFileEntry.get()
         team_file = self.teamFileEntry.get()
 
@@ -126,7 +126,6 @@ class ZiggyMailer:
                         )
 
             this_round = Round(round_number, round_file, team_file)
-
             assert this_round.countRooms() <= 1000, 'There are %i rooms, but the SendGrid API only allows up to 1,000 at once. Reduce the number of rooms.' % this_round.countRooms()
 
             for room in this_round.rooms:
@@ -135,9 +134,15 @@ class ZiggyMailer:
                     pers.add_to(participant)
                 pers.add_substitution( Substitution('[aff]', room.affirmative) )
                 pers.add_substitution( Substitution('[neg]', room.negative) )
-                pers.add_substitution( Substitution('[round]', str(this_round.number) ) )
+                pers.add_substitution( Substitution('[round]', this_round.number ) )
                 mail.add_personalization(pers)
             del mail.personalizations[0]  # Remove the dummy address from the workaround.
+
+            if __debug__:
+                print('Mail Object:')
+                print(mail.__dict__)
+                print('Room Object')
+                print(room.__dict__)
 
             response = sg.client.mail.send.post(request_body=mail.get())
             if __debug__:
@@ -188,16 +193,13 @@ class Round:
                 if team_row['Team'] == affirmative or team_row['Team'] == negative:
                     name1 = team_row['First Name 1'] + ' ' + team_row['Last Name 1']
                     email1 = team_row['Email 1']
-
                     if email1: participants.append( Email(email1, name1) )
                     name2 = team_row['First Name 2'] + ' ' + team_row['Last Name 2']
                     email2 = team_row['Email 2']
                     if email2: participants.append( Email(email2, name2) )
-
                     # Emails 3 and 4 are for parents
                     email3 = team_row['Email 3']
                     if email3: participants.append( Email(email3) )
-
                     email4 = team_row['Email 4']
                     if email4: participants.append( Email(email4) )
 
