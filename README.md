@@ -12,3 +12,22 @@ Elijah Schow © 2016
     > python3 -m pip install sendgrid
 
 4. Run ZiggyMailer.py from the terminal, Python Launcher, or IDLE
+
+## Settings.ini
+This program will not work without a valid SendGrid API key. Before running it,
+create a settings.ini file and add your API key. Also populate the "values"
+section to set default values for the form inputs.
+
+'''
+[general]
+APIKey =
+
+[values]
+FromEmail =
+ReplyTo =
+Subject =
+Body =
+RoundNumber =
+RoundFile = data/Example Round.csv
+TeamFile = data/Example Team Data.csv
+'''
