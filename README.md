@@ -18,7 +18,7 @@ This program will not work without a valid SendGrid API key. Before running it,
 create a settings.ini file and add your API key. Also populate the "values"
 section to set default values for the form inputs.
 
-'''
+```
 [general]
 APIKey =
 
@@ -30,4 +30,4 @@ Body =
 RoundNumber =
 RoundFile = data/Example Round.csv
 TeamFile = data/Example Team Data.csv
-'''
+```
