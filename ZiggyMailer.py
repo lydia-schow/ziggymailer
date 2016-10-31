@@ -11,42 +11,26 @@ import sendgrid
 from sendgrid.helpers.mail import *
 
 class ZiggyMailer:
-    def __init__(self, root):
-        """Initialize the GUI application"""
-        # Load defaults
-        config = cfg.ConfigParser()
-        config.read('settings.ini')
-        default = {
-            'from_email' : config['values']['FromEmail'],
-            'reply_to' : config['values']['ReplyTo'],
-            'subject' : config['values']['Subject'],
-            'body' : config['values']['Body'],
-            'round_number' : config['values']['RoundNumber'],
-            'round_file' : config['values']['RoundFile'],
-            'team_file' : config['values']['TeamFile']
-        }
-        # Initialize GUI
-        self.root = root
-        self.root.wm_title('Ziggy Mailer')
+    def __init__(self):
+        """Set up the GUI and load default settings"""
+        # Window Title
+        root.wm_title('Ziggy Mailer')
         # Left column
         self.leftFrame = tk.Frame(root)
         self.leftFrame.grid(row=0, column=0, sticky='NW', padx=(10,5))
         # From Input
-        value = tk.StringVar(root, default['from_email'])
         self.fromLabel = tk.Label(self.leftFrame, text='From')
-        self.fromEntry = tk.Entry(self.leftFrame, textvariable=value)
+        self.fromEntry = tk.Entry(self.leftFrame)
         self.fromLabel.grid(sticky='W',pady=(5,0),padx=(0,5),column=0,row=0)
         self.fromEntry.grid(sticky='WE',pady=(0,5),padx=(0,5),column=0,row=1)
         #Reply-to Input
-        value = tk.StringVar(root, default['reply_to'])
         self.replyToLabel = tk.Label(self.leftFrame, text='Reply To')
-        self.replyToEntry = tk.Entry(self.leftFrame, textvariable=value)
+        self.replyToEntry = tk.Entry(self.leftFrame)
         self.replyToLabel.grid(sticky='W',pady=(5,0),padx=(5,0),column=1,row=0)
         self.replyToEntry.grid(sticky='WE',pady=(0,5),padx=(5,0),column=1,row=1)
         # Subject Input
-        value = tk.StringVar(root, default['subject'])
         self.subjectLabel = tk.Label(self.leftFrame, text='Subject')
-        self.subjectEntry = tk.Entry(self.leftFrame, textvariable=value)
+        self.subjectEntry = tk.Entry(self.leftFrame)
         self.subjectLabel.grid(sticky='W', pady=(5,0), columnspan=2)
         self.subjectEntry.grid(sticky='WE', pady=(0,5), columnspan=2)
         #Body Input
@@ -54,34 +38,27 @@ class ZiggyMailer:
         self.bodyText = tk.Text(self.leftFrame, )
         self.bodyLabel.grid(sticky='W', pady=(5,0), columnspan=2)
         self.bodyText.grid(sticky='WE', pady=(0,5), columnspan=2)
-        for line in default['body'].split('\\n'):
-            self.bodyText.insert( 'end', line + '\n')
         # Right column
         self.rightFrame = tk.Frame(root)
         self.rightFrame.grid(row=0, column=1, sticky='NW', padx=(5, 10))
         # Round Number Input
-        value = tk.StringVar(root, default['round_number'])
         self.roundLabel = tk.Label(self.rightFrame, text='Round Number')
-        self.roundEntry = tk.Entry(self.rightFrame, textvariable=value)
+        self.roundEntry = tk.Entry(self.rightFrame)
         self.roundLabel.grid(row='0', sticky='W', pady=(5,0), columnspan=2)
         self.roundEntry.grid(row='1', sticky='WE', pady=(0,5), columnspan=2)
         # Round File Input
-        value = tk.StringVar(root, default['round_file'])
         self.roundFileLabel = tk.Label(self.rightFrame, text='Round File (.csv)')
+        self.roundFileEntry = tk.Entry(self.rightFrame, state='disabled')
         self.roundFileButton = tk.Button(self.rightFrame, text="Open",
             command=lambda:self.set_filename(self.roundFileEntry))
-        self.roundFileEntry = tk.Entry(self.rightFrame, state='disabled',
-            textvariable=value)
         self.roundFileLabel.grid(row='2', sticky='W', pady=(5,0), columnspan=2)
         self.roundFileButton.grid(row='3', column=0)
         self.roundFileEntry.grid(row='3', column=1, sticky="NSEW")
         # Team File Input
-        value = tk.StringVar(root, default['team_file'])
         self.teamFileLabel = tk.Label(self.rightFrame, text='Team File (.csv)')
+        self.teamFileEntry = tk.Entry(self.rightFrame, state='disabled')
         self.teamFileButton = tk.Button(self.rightFrame, text="Open",
             command=lambda:self.set_filename(self.teamFileEntry))
-        self.teamFileEntry = tk.Entry(self.rightFrame, state='disabled',
-            textvariable=value)
         self.teamFileLabel.grid(row='4', sticky='W', pady=(5,0), columnspan=2)
         self.teamFileButton.grid(row='5', column=0)
         self.teamFileEntry.grid(row='5', column=1, sticky="NSEW")
@@ -89,18 +66,68 @@ class ZiggyMailer:
         self.submitButton = tk.Button(root, text='Send', command=self.submit )
         self.submitButton.grid(stick='WE', row=1,columnspan=2, padx=10, pady=10)
 
+        # Load settings
+        if not os.path.isfile('settings.ini'):
+            tk.messagebox.showerror('Error', 'Ziggy Mailer requires a file called settings.ini to run. Read README.md for details.' )
+            root.destroy()
+        config = cfg.ConfigParser()
+        config.read('settings.ini')
+        values = config['values']
+        general = config['general']
+        default = {
+                'from_email'    :   values.get('FromEmail'),
+                'reply_to'      :   values.get('ReplyTo'),
+                'subject'       :   values.get('Subject'),
+                'body'          :   values.get('Body'),
+                'round_number'  :   values.get('RoundNumber'),
+                'round_file'    :   values.get('RoundFile'),
+                'team_file'     :   values.get('TeamFile')
+        }
+
+        # Create sendgrid client
+        self.sg = sendgrid.SendGridAPIClient(apikey=general.get('APIKey', ''))
+
+        # Set default values
+        # From Input
+        value = tk.StringVar(root, default.get('from_email'))
+        self.fromEntry.configure(textvariable = value)
+        # Reply-to Input
+        value = tk.StringVar(root, default.get('reply_to'))
+        self.replyToEntry.configure(textvariable = value)
+        # Subject Input
+        value = tk.StringVar(root, default.get('subject'))
+        self.subjectEntry.configure(textvariable = value)
+        # Round Number Input
+        value = tk.StringVar(root, default.get('round_number'))
+        self.roundEntry.configure(textvariable = value)
+        # Body Input
+        for line in default.get('body').split('\\n'):
+            self.bodyText.insert( 'end', line + '\n')
+        # Round File Input
+        value = tk.StringVar(root, default.get('round_file'))
+        self.roundFileEntry.configure(state = 'normal')  # entry can't be edited if it's disabled
+        self.roundFileEntry.configure(textvariable = value)
+        self.roundFileEntry.configure(state = 'disabled')
+        # Team Data Input
+        self.teamFileEntry.configure(state = 'normal')  # entry can't be edited if it's disabled
+        value = tk.StringVar(root, default.get('team_file'))
+        self.teamFileEntry.configure(textvariable = value)
+        self.teamFileEntry.configure(state = 'disabled')
+
     def set_filename(self, target):
         """Update a file name input"""
-        # TODO: assert that 'target' is an instance of tk.Entry
+        assert isinstance(target, tk.Entry), 'The target of set_filename() must be an instance of tk.Entry.'
+        
         filename = askopenfilename(filetypes=[('Comma Separated Values', '*.csv')])
-        target.configure(state = 'normal') # text can't be edited if it's disabled
-        target.delete(0, 'end')
-        target.insert(0, filename)
-        target.xview('end')
-        target.configure(state = 'disabled')
+        if filename:
+            target.configure(state = 'normal') # text can't be edited if it's disabled
+            target.delete(0, 'end')
+            target.insert(0, filename)
+            target.xview('end')
+            target.configure(state = 'disabled')
 
     def submit(self):
-        """Send postings to each room."""
+        """Build and send postings to each room."""
         from_email = self.fromEntry.get()
         reply_to = self.replyToEntry.get()
         subject = self.subjectEntry.get()
@@ -112,18 +139,18 @@ class ZiggyMailer:
         try:
             assert from_email, 'There is no "From" address. Please specify one.'
             assert subject, 'The subject is empty. Please write a suject line.'
-            assert len(subject) < 78, 'The subject must be fewer than 78 characters long. Please shorten it.'  # Required by the SendGrid API
+            assert len(subject) < 78, 'The subject must be fewer than 78 characters long. Please shorten it.'  # The SendGrid API will not accept subjects that are longers than 78 characters
             assert round_number, 'There is no round number. Please specify one.'
+
+            this_round = Round(round_number, round_file, team_file)
+
+            assert this_round.count_rooms() <= 1000, 'There are %i rooms, but the SendGrid API only allows up to 1,000 at once. Reduce the number of rooms.' % this_round.count_rooms() # The SendGrid API will not accept more than 1,000 personalizations
 
             mail = Mail( from_email = Email(from_email),
                          subject = subject,
-                         to_email = Email('user@server.com','Firstname Lastname'), # This is a work around. The API malfunctions if you set this to "none".
+                         to_email = Email('user@server.com','Firstname Lastname'),  # The API malfunctions if this field is "none", so a dummy address is inserted. It will be removed before the message is sent.
                          content = Content('text/plain', body )
                         )
-
-            this_round = Round(round_number, round_file, team_file)
-            assert this_round.count_rooms() <= 1000, 'There are %i rooms, but the SendGrid API only allows up to 1,000 at once. Reduce the number of rooms.' % this_round.count_rooms()
-
             for room in this_round.rooms:
                 pers = Personalization()
                 for participant in room.participants:
@@ -132,20 +159,20 @@ class ZiggyMailer:
                 pers.add_substitution( Substitution('[neg]', room.negative) )
                 pers.add_substitution( Substitution('[round]', this_round.number ) )
                 mail.add_personalization(pers)
-            del mail.personalizations[0]  # Remove the dummy address from the workaround.
+            del mail.personalizations[0]  # Remove the dummy address
 
+            # Send an API request to SendGrid
+            response = self.sg.client.mail.send.post(request_body=mail.get())
             if __debug__:
                 print('Mail Object:')
                 print(mail.__dict__)
                 print('Room Object')
                 print(room.__dict__)
-
-            response = sg.client.mail.send.post(request_body=mail.get())
-            if __debug__:
                 print(response.status_code)
                 print(response.body)
                 print(response.headers)
 
+            # Tell the user that the request was successful
             room_count = len(this_round.rooms)
             tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i e-mail addresses.' % ( this_round.count_rooms(), this_round.count_emails() ) )
 
@@ -234,10 +261,8 @@ def read_csv(file_name):
     return result
 
 """Main Loop"""
-config = cfg.ConfigParser()
-config.read('settings.ini')
-sg = sendgrid.SendGridAPIClient(apikey=config['general']['APIKey'])
+global root
 
 root = tk.Tk()
-app = ZiggyMailer(root)
+ZiggyMailer()
 root.mainloop()
