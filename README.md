@@ -2,8 +2,8 @@
 Automate e-mail postings for an online debate tournament.
 
 ## Legal
-This project is offered as-is without warranty.
-Elijah Schow © 2016
+This project is offered as-is and without warranty.
+©2016 Elijah Schow 
 
 ## Installation
 1. Install the latest version of Python 3 from [Python.org](https://www.python.org/)
