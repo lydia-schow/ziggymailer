@@ -117,7 +117,6 @@ class ZiggyMailer:
     def set_filename(self, target):
         """Update a file name input"""
         assert isinstance(target, tk.Entry), 'The target of set_filename() must be an instance of tk.Entry.'
-        
         filename = askopenfilename(filetypes=[('Comma Separated Values', '*.csv')])
         if filename:
             target.configure(state = 'normal') # text can't be edited if it's disabled
@@ -189,13 +188,13 @@ class Round:
         self.number = number
 
         assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
-        round_data = read_csv(round_file)
+        round_data = self.read_csv(round_file)
         assert 'AFF' in round_data[0] and\
                'NEG' in round_data[0],\
                'The round data file is not formatted correctly. Make sure it contains these columns (case-sensive): "AFF", and "NEG".'
 
         assert os.path.isfile(team_file), 'The Round File does not exist. Make sure one is selected.'
-        team_data = read_csv(team_file)
+        team_data = self.read_csv(team_file)
         assert 'Team' in team_data[0] and\
                'First Name 1' in team_data[0] and\
                'Last Name 1' in team_data[0] and\
@@ -241,6 +240,15 @@ class Round:
             result += len(room.participants)
         return result
 
+    def read_csv(self, file_name):
+        """Load a CSV file into a Python data structure"""
+        result = []
+        with open(file_name, 'r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                result.append(row)
+            file.close()
+        return result
 
 class Room:
     """Represents a single room in a round."""
@@ -249,20 +257,8 @@ class Room:
         self.negative = negative
         self.participants = participants
 
-
-def read_csv(file_name):
-    """Load a CSV file into a Python data structure"""
-    result = []
-    with open(file_name, 'r') as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            result.append(row)
-        file.close()
-    return result
-
 """Main Loop"""
 global root
-
 root = tk.Tk()
 ZiggyMailer()
 root.mainloop()
