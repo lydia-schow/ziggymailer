@@ -141,15 +141,36 @@ class ZiggyMailer:
             assert len(subject) < 78, 'The subject must be fewer than 78 characters long. Please shorten it.'  # The SendGrid API will not accept subjects that are longers than 78 characters
             assert round_number, 'There is no round number. Please specify one.'
 
-            this_round = Round(round_number, round_file, team_file)
+            assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
+            round_data = self.read_csv(round_file)
+            assert 'AFF' in round_data[0] and\
+                   'NEG' in round_data[0],\
+                   'The round data file is not formatted correctly. Make sure it contains these columns (case-sensive): "AFF", and "NEG".'
 
-            assert this_round.count_rooms() <= 1000, 'There are %i rooms, but the SendGrid API only allows up to 1,000 at once. Reduce the number of rooms.' % this_round.count_rooms() # The SendGrid API will not accept more than 1,000 personalizations
+            assert os.path.isfile(team_file), 'The Round File does not exist. Make sure one is selected.'
+            team_data = self.read_csv(team_file)
+            assert 'Team' in team_data[0] and\
+                   'First Name 1' in team_data[0] and\
+                   'Last Name 1' in team_data[0] and\
+                   'Email 1' in team_data[0] and\
+                   'First Name 2' in team_data[0] and\
+                   'Last Name 2' in team_data[0] and\
+                   'Email 2' in team_data[0] and\
+                   'Email 3' in team_data[0] and\
+                   'Email 4' in team_data[0],\
+                   'The team data file is not formatted correctly. Make sure it contains these columns (case-sensive): "Team", "First Name 1", "Last Name 1", "Email 1", "First Name 2", "Last Name 2", "Email 2", "Email 3", and "Email 4".'
+
+            this_round = Round(round_number, round_data, team_data)
+            # The SendGrid API will not accept more than 1,000 personalizations
+            assert this_round.count_rooms() <= 1000, 'There are %i rooms, but the SendGrid API only allows up to 1,000 at once. Reduce the number of rooms.' % this_round.count_rooms()
 
             mail = Mail( from_email = Email(from_email),
                          subject = subject,
-                         to_email = Email('user@server.com','Firstname Lastname'),  # The API malfunctions if this field is "none", so a dummy address is inserted. It will be removed before the message is sent.
+                         # The API malfunctions if to_email is "none", so a dummy address is inserted. It will be removed before the message is sent.
+                         to_email = Email('user@server.com','Firstname Lastname'),
                          content = Content('text/plain', body )
                         )
+
             for room in this_round.rooms:
                 pers = Personalization()
                 for participant in room.participants:
@@ -159,14 +180,13 @@ class ZiggyMailer:
                 pers.add_substitution( Substitution('[round]', this_round.number ) )
                 mail.add_personalization(pers)
             del mail.personalizations[0]  # Remove the dummy address
+            if __debug__:
+                print('Mail Object:')
+                print(mail.get())
 
             # Send an API request to SendGrid
             response = self.sg.client.mail.send.post(request_body=mail.get())
             if __debug__:
-                print('Mail Object:')
-                print(mail.__dict__)
-                print('Room Object')
-                print(room.__dict__)
                 print(response.status_code)
                 print(response.body)
                 print(response.headers)
@@ -174,71 +194,12 @@ class ZiggyMailer:
             # Tell the user that the request was successful
             room_count = len(this_round.rooms)
             tk.messagebox.showinfo( 'Message Sent', 'The message was sent to %i rooms and %i e-mail addresses.' % ( this_round.count_rooms(), this_round.count_emails() ) )
-
         except AssertionError as error:
             tk.messagebox.showerror('Error', error)
         except HTTPError as error:
             tk.messagebox.showerror('Error', '%s (HTTP %i)' % (error.msg, error.code) )
         except Exception as error:
             tk.messagebox.showerror('Error', error )
-
-class Round:
-    """Represents one debate round in the tournament"""
-    def __init__(self, number, round_file, team_file):
-        self.number = number
-
-        assert os.path.isfile(round_file), 'The Round File does not exist. Make sure one is selected.'
-        round_data = self.read_csv(round_file)
-        assert 'AFF' in round_data[0] and\
-               'NEG' in round_data[0],\
-               'The round data file is not formatted correctly. Make sure it contains these columns (case-sensive): "AFF", and "NEG".'
-
-        assert os.path.isfile(team_file), 'The Round File does not exist. Make sure one is selected.'
-        team_data = self.read_csv(team_file)
-        assert 'Team' in team_data[0] and\
-               'First Name 1' in team_data[0] and\
-               'Last Name 1' in team_data[0] and\
-               'Email 1' in team_data[0] and\
-               'First Name 2' in team_data[0] and\
-               'Last Name 2' in team_data[0] and\
-               'Email 2' in team_data[0] and\
-               'Email 3' in team_data[0] and\
-               'Email 4' in team_data[0],\
-               'The team data file is not formatted correctly. Make sure it contains these columns (case-sensive): "Team", "First Name 1", "Last Name 1", "Email 1", "First Name 2", "Last Name 2", "Email 2", "Email 3", and "Email 4".'
-
-        self.rooms = []
-        for round_row in round_data:
-            affirmative = round_row['AFF']
-            negative = round_row['NEG']
-            participants = []
-            for team_row in team_data:
-                if team_row['Team'] == affirmative or team_row['Team'] == negative:
-                    name1 = team_row['First Name 1'] + ' ' + team_row['Last Name 1']
-                    email1 = team_row['Email 1']
-                    if email1: participants.append( Email(email1, name1) )
-                    name2 = team_row['First Name 2'] + ' ' + team_row['Last Name 2']
-                    email2 = team_row['Email 2']
-                    if email2: participants.append( Email(email2, name2) )
-                    # Emails 3 and 4 are for parents
-                    email3 = team_row['Email 3']
-                    if email3: participants.append( Email(email3) )
-                    email4 = team_row['Email 4']
-                    if email4: participants.append( Email(email4) )
-
-            room = Room(affirmative, negative, participants)
-            self.rooms.append(room)
-
-    def count_rooms(self):
-        """Count the number of rooms in a round."""
-        return len(self.rooms)
-
-    def count_emails(self):
-        """Count the number of e-mail addresses that this room's postings will
-        be sent to."""
-        result = 0
-        for room in self.rooms:
-            result += len(room.participants)
-        return result
 
     def read_csv(self, file_name):
         """Load a CSV file into a Python data structure"""
@@ -250,12 +211,57 @@ class Round:
             file.close()
         return result
 
+
+class Round:
+    """Represents one debate round in the tournament"""
+    def __init__(self, number, round_data, team_data):
+        self.number = number
+        self.round_data = round_data
+        self.rooms = []
+        for round_row in round_data:
+            room = Room( round_row.get('AFF'), round_row.get('NEG'), team_data )
+            self.rooms.append(room)
+
+    def count_rooms(self):
+        """Count the number of rooms in a round."""
+        return len(self.rooms)
+
+    def count_emails(self):
+        """Count the number of e-mail addresses that this room's postings will
+        be sent to.
+        NOTE: This function does not return a count of UNIQUE e-mail
+        addresses. If the same address is in multiple rooms, it will get
+        counted multiple times."""
+        result = 0
+        for room in self.rooms:
+            result += len(room.participants)
+        return result
+
+
 class Room:
     """Represents a single room in a round."""
-    def __init__(self, affirmative, negative, participants):
+    def __init__(self, affirmative, negative, team_data):
         self.affirmative = affirmative
         self.negative = negative
-        self.participants = participants
+        self.participants = []
+        # Get all email addresses for this room
+        emails = []
+        for team_row in team_data:
+            if team_row['Team'] == affirmative or team_row['Team'] == negative:
+                email1 = team_row.get('Email 1')
+                email2 = team_row.get('Email 2')
+                email3 = team_row.get('Email 3') # for a parent
+                email4 = team_row.get('Email 4') # for a parent
+                if email1: emails.append(email1)
+                if email2: emails.append(email2)
+                if email3: emails.append(email3)
+                if email4: emails.append(email4)
+        # Remove duplicate emails. Otherwise, SendGrid won't accept the request.
+        unique_emails = set(emails)
+        # Convert emails into instances of the Email class
+        for each in unique_emails:
+            self.participants.append( Email(each) )
+
 
 """Main Loop"""
 global root
