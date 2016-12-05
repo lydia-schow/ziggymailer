@@ -1,3 +1,5 @@
+![](/screenshot.PNG)
+
 Automate e-mail postings for an online debate tournament.
 
 ## Legal
