@@ -1,6 +1,2 @@
-*.pyc
-*.ini
-__pycache__
-dist
-build
-data
+node_modules
+out
