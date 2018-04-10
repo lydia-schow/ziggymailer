@@ -10,14 +10,15 @@
     <h1>Ziggy Mailer</h1>
     <form>
 
-      <div class="form-group">
-        <label for="from">From</label>
-        <input type="text" id="from" class="form-control" />
-      </div>
-
-      <div class="form-group">
-        <label for="reply-to">Reply to</label>
-        <input type="text" id="reply-to" class="form-control" />
+      <div class="row">
+        <div class="form-group col-sm-6">
+          <label for="from">From</label>
+          <input type="text" id="from" class="form-control" />
+        </div>
+        <div class="form-group col-sm-6">
+          <label for="reply-to">Reply to</label>
+          <input type="text" id="reply-to" class="form-control" />
+        </div>
       </div>
 
       <div class="form-group">
@@ -30,19 +31,23 @@
         <textarea id="message-body" rows="8" class="form-control" />
         </div>
 
-        <div class="form-group">
-          <label for="round-number">Round Number</label>
-          <input type="number" id="round-number" class="form-control" />
-        </div>
+        <div class="row">
 
-        <div class="form-group">
-          <label for="round-file">Round File</label>
-          <input type="file" id="round-file" class="form-control" />
-        </div>
+          <div class="form-group col-sm-4">
+            <label for="round-number">Round Number</label>
+            <input type="number" id="round-number" class="form-control" />
+          </div>
 
-        <div class="form-group">
-          <label for="team-file">Team File</label>
-          <input type="file" id="team-file" class="form-control" />
+          <div class="form-group col-sm-4">
+            <label for="round-file">Round File</label>
+            <input type="file" id="round-file" class="form-control" />
+          </div>
+
+          <div class="form-group col-sm-4">
+            <label for="team-file">Team File</label>
+            <input type="file" id="team-file" class="form-control" />
+          </div>
+
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">Send Emails</button>
