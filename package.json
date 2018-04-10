@@ -1,8 +1,8 @@
 {
   "name": "ziggymailer",
-  "productName": "ziggymailer",
-  "version": "1.0.0",
-  "description": "My Electron application description",
+  "productName": "Ziggy Mailer",
+  "version": "2.0.0",
+  "description": "Automate e-mail postings for an online debate tournament.",
   "main": "src/index.js",
   "scripts": {
     "start": "electron-forge start",
