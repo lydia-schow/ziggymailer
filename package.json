@@ -29,7 +29,8 @@
         ]
       },
       "electronPackagerConfig": {
-        "packageManager": "yarn"
+        "packageManager": "yarn",
+        "asar": true
       },
       "electronWinstallerConfig": {
         "name": "ziggymailer"
