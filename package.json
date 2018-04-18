@@ -1,15 +1,15 @@
 {
-  "name": "ziggymailer",
-  "productName": "Ziggy Mailer",
-  "version": "2.0.0",
-  "description": "Automate e-mail postings for an online debate tournament.",
+  "name": "my-project",
+  "productName": "my-project",
+  "version": "1.0.0",
+  "description": "My Electron application description",
   "main": "src/index.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint src --color"
+    "lint": "eslint --cache --color --ext .jsx,.js src"
   },
   "keywords": [],
   "author": "elijahschow",
@@ -29,11 +29,10 @@
         ]
       },
       "electronPackagerConfig": {
-        "packageManager": "yarn",
-        "asar": true
+        "packageManager": "yarn"
       },
       "electronWinstallerConfig": {
-        "name": "ziggymailer"
+        "name": "my_project"
       },
       "electronInstallerDebian": {},
       "electronInstallerRedhat": {},
@@ -43,23 +42,24 @@
       },
       "windowsStoreConfig": {
         "packageName": "",
-        "name": "ziggymailer"
+        "name": "myproject"
       }
     }
   },
   "dependencies": {
-    "bootstrap": "^4.0.0",
     "electron-compile": "^6.4.2",
-    "electron-settings": "^3.1.4",
+    "electron-devtools-installer": "^2.1.0",
     "electron-squirrel-startup": "^1.0.0",
-    "jquery": "^3.3.1",
-    "popper.js": "^1.14.3"
+    "react": "^15.4.1",
+    "react-dom": "^15.4.1",
+    "react-hot-loader": "^3.0.0-beta.6"
   },
   "devDependencies": {
     "babel-plugin-transform-async-to-generator": "^6.24.1",
+    "babel-plugin-transform-es2015-classes": "^6.24.1",
     "babel-preset-env": "^1.6.1",
     "babel-preset-react": "^6.24.1",
-    "electron-forge": "^5.1.1",
+    "electron-forge": "^5.2.0",
     "electron-prebuilt-compile": "1.8.4",
     "eslint": "^3",
     "eslint-config-airbnb": "^15",
