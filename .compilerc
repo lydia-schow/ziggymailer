@@ -4,7 +4,8 @@
       "application/javascript": {
         "presets": [
           ["env", { "targets": { "electron": "1.6.0" } }],
-          "react"
+          "react",
+          "stage-2"
         ],
         "plugins": ["transform-async-to-generator", "transform-es2015-classes", "react-hot-loader/babel"],
         "sourceMaps": "inline"
@@ -14,7 +15,8 @@
       "application/javascript": {
         "presets": [
           ["env", { "targets": { "electron": "1.6.0" } }],
-          "react"
+          "react",
+          "stage-2"
         ],
         "plugins": ["transform-async-to-generator", "transform-es2015-classes"],
         "sourceMaps": "none"

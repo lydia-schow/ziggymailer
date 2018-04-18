@@ -1,6 +1,8 @@
 import React from 'react';
+import Settings from './settings';
 
 export default class App extends React.Component {
+
   render() {
     return (
       <div>
@@ -52,59 +54,9 @@ export default class App extends React.Component {
             Emails</button>
           </form>
         </div>
-
-        <div className="modal fade" tabIndex="-1" role="dialog"
-          id="settings">
-          <div className="modal-dialog" role="document">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Settings</h5>
-                <button type="button" className="close" data-dismiss="modal"
-                  aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label htmlFor="sendgrid-key">Sendgrid API Key</label>
-                  <input id="zd-settings-sendgrid-key" className="form-control" />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-link"
-                  data-dismiss="modal">Cancel</button>
-                <button type="button" className="btn btn-primary"
-                // onClick={$('#settings').trigger('zd.settings.save')}
-                >Set Key</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <Settings />
       </div>
     );
   }
+
 }
-
-// import { app, dialog } from 'electron';
-// import settings from 'electron-settings';
-
-// module.exports = () => {
-//     settings.deleteAll();
-//     if (!settings.has('sendgrid.key')) {
-//         dialog.showMessageBox({
-//             type: "question",
-//             title: "Set Sendgrid API Key",
-//             message: "Hi, I need your Sendgrid API key to send emails.",
-//             detail: "I won't be able to send email without it.",
-//             buttons: ['Set Key', 'Cancel']
-//         }, response => {
-//             if (response === 0) {
-//                 dialog.showMessageBox({
-//                     type: "error",
-//                     message: "Oopsie!",
-//                     detail: "I don't have this feature yet. Hopefully I'll have it soon!"
-//                 });
-//             }
-//         });
-//     }
-// }
