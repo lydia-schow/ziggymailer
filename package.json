@@ -1,8 +1,8 @@
 {
-  "name": "my-project",
-  "productName": "my-project",
-  "version": "1.0.0",
-  "description": "My Electron application description",
+  "name": "ziggymailer",
+  "productName": "Ziggy Mailer",
+  "version": "2.0.0",
+  "description": "Automate e-mail postings for an online debate tournament.",
   "main": "src/index.js",
   "scripts": {
     "start": "electron-forge start",
@@ -29,10 +29,11 @@
         ]
       },
       "electronPackagerConfig": {
-        "packageManager": "yarn"
+        "packageManager": "yarn",
+        "asar": true
       },
       "electronWinstallerConfig": {
-        "name": "my_project"
+        "name": "ziggymailer"
       },
       "electronInstallerDebian": {},
       "electronInstallerRedhat": {},
@@ -42,7 +43,7 @@
       },
       "windowsStoreConfig": {
         "packageName": "",
-        "name": "myproject"
+        "name": "ziggymailer"
       }
     }
   },
