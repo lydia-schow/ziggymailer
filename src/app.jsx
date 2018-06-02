@@ -6,7 +6,7 @@ import csv from 'csv';
 import { remote } from 'electron';
 import React from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert } from 'reactstrap';
-import { find, mapValues, defaultsDeep } from 'lodash';
+import { find, values, defaultsDeep, uniq } from 'lodash';
 
 const { dialog } = remote;
 
@@ -23,7 +23,8 @@ const error = (...args) => {
 };
 
 /* Regex source: http://emailregex.com/ */
-const isEmail = value => typeof value === 'string' && value.test(/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
+const emailRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+const isEmail = value => emailRegex.test(value);
 
 export default class App extends React.Component {
 
@@ -63,8 +64,6 @@ export default class App extends React.Component {
     const teams = this.state.teamData;
     const roundNumber = this.state.roundNumber;
     rounds.forEach((round) => {
-      console.dir(round);
-      console.dir(teams);
       const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
       const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
       if (!AFF) {
@@ -75,8 +74,13 @@ export default class App extends React.Component {
         dialog.showErrorBox('Error', `Could not find NEG team ${round.NEG}. Make sure they match in the round and team file.`);
         return;
       }
-      /* extract all the email addresses from both teams */
-      const emails = mapValues(NEG).concat(mapValues(AFF)).filter(isEmail);
+
+      /* Extract all unique email addresses from both teams */
+      const emails = uniq(values(NEG).concat(values(AFF)).filter(isEmail));
+      if (emails.length === 0) {
+        dialog.showErrorBox('Error', `I did not find email addresses for ${AFF.Team} and ${NEG.Team}. Add some then try again.`);
+        return;
+      }
       console.dir({
         emails,
         roundNumber,
