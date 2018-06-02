@@ -1,5 +1,6 @@
 import settings from 'electron-settings';
 import fs from 'fs';
+import { EOL } from 'os';
 import path from 'path';
 import csv from 'csv';
 import { remote } from 'electron';
@@ -8,6 +9,18 @@ import { Button, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert }
 
 const { dialog } = remote;
 const SENDGRID_KEY = 'form.sendgridKey';
+
+const error = (...args) => {
+  console.error(...args);
+  /* `EOL` stands for `end of line`. I'm using it because Windows and Unix use
+  different line endings */
+  const date = Date.now().toString();
+  const message = [...args].join(' ');
+  const data = `${date} - ${message}${EOL}`;
+  fs.appendFile('error.log', data, (_error) => {
+    if (_error) console.error('Couldn\'t write error log.');
+  });
+};
 
 export default class App extends React.Component {
 
@@ -36,6 +49,8 @@ export default class App extends React.Component {
       event.preventDefault();
       event.stopPropagation();
     }
+
+    error('test error');
     console.log('Email ALL THE THINGS');
   }
 
@@ -85,6 +100,7 @@ export default class App extends React.Component {
       fs.readFile(filename, (error, rawData) => {
         if (error) {
           dialog.showErrorBox('I had trouble opening the file.', error);
+          error(error);
           return;
         }
         /* Auto-detect columns http://csv.adaltas.com/parse/ */
@@ -92,6 +108,7 @@ export default class App extends React.Component {
         const parseCallback = (_error, data) => {
           if (_error) {
             dialog.showErrorBox('I had trouble parsing the file. It might not be a valid CSV.', _error);
+            error(error);
             return;
           }
           callback({ data, filename });
@@ -129,6 +146,7 @@ export default class App extends React.Component {
       },
       roundData: data,
     })));
+    // TODO: throw an error if columns are missing
   }
 
   render() {

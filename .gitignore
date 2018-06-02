@@ -3,3 +3,4 @@ out
 .eslintcache
 data
 .DS_Store
+error.log
