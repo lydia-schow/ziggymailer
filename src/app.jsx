@@ -1,5 +1,7 @@
 import settings from 'electron-settings';
 import fs from 'fs';
+import path from 'path';
+import csv from 'csv';
 import { remote } from 'electron';
 import React from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert } from 'reactstrap';
@@ -23,6 +25,8 @@ export default class App extends React.Component {
         teamFile: '',
         sendgridKey: '',
       }, settings.get('form')),
+      teamData: [],
+      roundData: [],
       settingsIsOpen: !this.canSend(),
     };
   }
@@ -61,25 +65,38 @@ export default class App extends React.Component {
     const value = target.type === 'checkbox' ? target.checked : target.value;
     const name = target.name;
     settings.set(`form.${name}`, value);
-    this.setState({
+    this.setState(state => ({
+      ...state,
       form: {
+        ...state.form,
         [name]: value,
       },
-    });
+    }));
   }
 
-  openFile(callback) {
+  openFile(title = 'Open file', callback) {
     const options = {
+      title,
       filters: [{ name: 'CSV', extensions: ['csv'] }],
     };
     dialog.showOpenDialog(options, (filenames) => {
       if (!filenames) return;
-      fs.readFile(filenames[0], (error, data) => {
+      const filename = filenames[0];
+      fs.readFile(filename, (error, rawData) => {
         if (error) {
           dialog.showErrorBox('I had trouble opening the file.', error);
           return;
         }
-        callback(data);
+        /* Auto-detect columns http://csv.adaltas.com/parse/ */
+        const parseOptions = { columns: true };
+        const parseCallback = (_error, data) => {
+          if (_error) {
+            dialog.showErrorBox('I had trouble parsing the file. It might not be a valid CSV.', _error);
+            return;
+          }
+          callback({ data, filename });
+        };
+        csv.parse(rawData, parseOptions, parseCallback);
       });
     });
   }
@@ -89,7 +106,14 @@ export default class App extends React.Component {
       event.preventDefault();
       event.stopPropagation();
     }
-    this.openFile(console.dir);
+    this.openFile('Team file', ({ data, filename }) => this.setState(state => ({
+      ...state,
+      form: {
+        ...state.form,
+        teamFile: filename,
+      },
+      teamData: data,
+    })));
   }
 
   openRoundFile(event) {
@@ -97,7 +121,14 @@ export default class App extends React.Component {
       event.preventDefault();
       event.stopPropagation();
     }
-    this.openFile(console.dir);
+    this.openFile('Round file', ({ data, filename }) => this.setState(state => ({
+      ...state,
+      form: {
+        ...state.form,
+        roundFile: filename,
+      },
+      roundData: data,
+    })));
   }
 
   render() {
@@ -180,7 +211,9 @@ export default class App extends React.Component {
                 >
                   Open
                 </button>
-                <p>{this.state.form.roundFile}</p>
+                <p>{path.basename(this.state.form.roundFile)}</p>
+                {this.state.roundData.length > 0 &&
+                  <p>{this.state.roundData.length} room(s)</p>}
               </div>
 
               <div className="form-group col-sm-4">
@@ -193,7 +226,9 @@ export default class App extends React.Component {
                 >
                   Open
                 </button>
-                <p>{this.state.form.teamFile}</p>
+                <p>{path.basename(this.state.form.teamFile)}</p>
+                {this.state.teamData.length > 0 &&
+                  <p>{this.state.teamData.length} teams(s)</p>}
               </div>
 
             </div>
