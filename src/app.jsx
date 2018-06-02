@@ -1,7 +1,10 @@
+import settings from 'electron-settings';
+import fs from 'fs';
+import { remote } from 'electron';
 import React from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert } from 'reactstrap';
-import settings from 'electron-settings';
 
+const { dialog } = remote;
 const SENDGRID_KEY = 'form.sendgridKey';
 
 export default class App extends React.Component {
@@ -22,11 +25,14 @@ export default class App extends React.Component {
       }, settings.get('form')),
       settingsIsOpen: !this.canSend(),
     };
+  }
 
-    this.toggleSettings = this.toggleSettings.bind(this);
-    this.submitSettings = this.submitSettings.bind(this);
-    this.change = this.change.bind(this);
-    this.canSend = this.canSend.bind(this);
+  submit (event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    console.log('Email ALL THE THINGS');
   }
 
   canSend() {
@@ -34,12 +40,18 @@ export default class App extends React.Component {
   }
 
   toggleSettings(event) {
-    if (event) { event.preventDefault(); }
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     this.setState({ settingsIsOpen: !this.state.settingsIsOpen });
   }
 
   submitSettings(event) {
-    if (event) { event.preventDefault(); }
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     settings.set(SENDGRID_KEY, this.state.form.sendgridKey);
     this.toggleSettings();
   }
@@ -56,12 +68,44 @@ export default class App extends React.Component {
     });
   }
 
+  openFile(callback) {
+    const options = {
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    };
+    dialog.showOpenDialog(options, (filenames) => {
+      if (!filenames) return;
+      fs.readFile(filenames[0], (error, data) => {
+        if (error) {
+          dialog.showErrorBox('I had trouble opening the file.', error);
+          return;
+        }
+        callback(data);
+      });
+    });
+  }
+
+  openTeamFile(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.openFile(console.dir);
+  }
+
+  openRoundFile(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.openFile(console.dir);
+  }
+
   render() {
     return (
       <div>
         <div className="container p-5">
           <h1>Ziggy Mailer</h1>
-          <form>
+          <form onSubmit={e => this.submit(e)}>
 
             <div className="row">
               <div className="form-group col-sm-6">
@@ -72,7 +116,7 @@ export default class App extends React.Component {
                   id="from"
                   className="form-control"
                   value={this.state.form.from}
-                  onChange={this.change}
+                  onChange={e => this.change(e)}
                 />
               </div>
               <div className="form-group col-sm-6">
@@ -83,7 +127,7 @@ export default class App extends React.Component {
                   id="reply-to"
                   className="form-control"
                   value={this.state.form.replyTo}
-                  onChange={this.change}
+                  onChange={e => this.change(e)}
                 />
               </div>
             </div>
@@ -96,7 +140,7 @@ export default class App extends React.Component {
                 id="subject"
                 className="form-control"
                 value={this.state.form.subject}
-                onChange={this.change}
+                onChange={e => this.change(e)}
               />
             </div>
 
@@ -108,7 +152,7 @@ export default class App extends React.Component {
                 rows="8"
                 className="form-control"
                 value={this.state.form.body}
-                onChange={this.change}
+                onChange={e => this.change(e)}
               />
             </div>
 
@@ -122,31 +166,34 @@ export default class App extends React.Component {
                   id="round-number"
                   className="form-control"
                   value={this.state.form.roundNumber}
-                  onChange={this.change}
+                  onChange={e => this.change(e)}
                 />
               </div>
 
               <div className="form-group col-sm-4">
                 <label htmlFor="round-file">Round File</label>
-                <input
-                  name="roundFile"
-                  type="file"
+                <button
                   id="round-file"
-                  value={this.state.form.roundFile}
-                  className="form-control"
-                />
+                  className="btn btn-block"
+                  type="button"
+                  onClick={e => this.openRoundFile(e)}
+                >
+                  Open
+                </button>
+                <p>{this.state.form.roundFile}</p>
               </div>
 
               <div className="form-group col-sm-4">
                 <label htmlFor="team-file">Team File</label>
-                <input
-                  name="teamFile"
-                  type="file"
+                <button
                   id="team-file"
-                  className="form-control"
-                  value={this.state.form.teamFile}
-                  onChange={this.change}
-                />
+                  className="btn btn-block"
+                  type="button"
+                  onClick={e => this.openTeamFile(e)}
+                >
+                  Open
+                </button>
+                <p>{this.state.form.teamFile}</p>
               </div>
 
             </div>
@@ -158,7 +205,7 @@ export default class App extends React.Component {
 
         <Modal isOpen={this.state.settingsIsOpen}>
           <form onSubmit={this.submitSettings}>
-            <ModalHeader toggle={this.toggleSettings}>Settings</ModalHeader>
+            <ModalHeader toggle={e => this.toggleSettings(e)}>Settings</ModalHeader>
             <ModalBody>
               {this.state.error && <UncontrolledAlert color="danger">{this.state.error}</UncontrolledAlert>}
               <div className="form-group">
@@ -167,7 +214,7 @@ export default class App extends React.Component {
                   type="password"
                   name="sendgridKey"
                   id="sendgrid-key"
-                  onChange={this.change}
+                  onChange={e => this.change(e)}
                   value={this.state.form.sendgridKey}
                   className="form-control"
                 />
@@ -175,7 +222,7 @@ export default class App extends React.Component {
               </div>
             </ModalBody>
             <ModalFooter>
-              <Button color="link" onClick={this.toggleSettings}>Cancel</Button>
+              <Button color="link" onClick={e => this.toggleSettings(e)}>Cancel</Button>
               <Button color="primary" type="submit">Set Key</Button>{' '}
             </ModalFooter>
           </form>

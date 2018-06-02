@@ -1,3 +1,5 @@
 node_modules
 out
 .eslintcache
+data
+.DS_Store
