@@ -48,12 +48,14 @@
     }
   },
   "dependencies": {
+    "@sendgrid/mail": "^6.2.1",
     "bootstrap": "^4.1.0",
     "csv": "^3.1.0",
     "electron-compile": "^6.4.2",
     "electron-devtools-installer": "^2.1.0",
     "electron-settings": "^3.1.4",
     "electron-squirrel-startup": "^1.0.0",
+    "flat": "^4.0.0",
     "jquery": "^3.3.1",
     "lodash": "^4.17.10",
     "popper.js": "^1.14.3",

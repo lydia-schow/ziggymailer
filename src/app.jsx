@@ -1,3 +1,5 @@
+// TODO: reset settings to defaults (except sendgrid and template key)
+
 import settings from 'electron-settings';
 import fs from 'fs';
 import { EOL } from 'os';
@@ -7,6 +9,8 @@ import { remote } from 'electron';
 import React from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert } from 'reactstrap';
 import { find, values, defaultsDeep, uniq } from 'lodash';
+import mail from '@sendgrid/mail';
+import flat from 'flat';
 
 const { dialog } = remote;
 
@@ -38,7 +42,7 @@ export default class App extends React.Component {
         sendgridKey: '',
         from: 'ziggyonlinedebate@gmail.com',
         replyTo: 'ziggyonlinedebate@gmail.com',
-        body: 'Hello,\nYour debate round [roud] pairing is as follows:\nAffirmative [aff] vs. Negative [neg]',
+        body: '<p>Hello,</p><p>Your debate round {{Round}} pairing is as follows:</p><p>Affirmative {{AFF.Team}} vs. Negative {{NEG.Team}}</p>',
         subject: 'Ziggy Debate - Postings',
         roundNumber: '1',
         teamFile: '',
@@ -46,6 +50,7 @@ export default class App extends React.Component {
         roundFile: '',
         roundData: [],
         settingsIsOpen: true,
+        templateId: 'c4ca7f9b-e077-4cd9-a4b3-ebf8752c1879',
       },
     );
     this.state.settingsIsOpen = this.state.sendgridKey.length === 0;
@@ -55,14 +60,14 @@ export default class App extends React.Component {
     settings.set('state', state);
   }
 
-  submit (event) {
+  submit(event) {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
     }
     const rounds = this.state.roundData;
     const teams = this.state.teamData;
-    const roundNumber = this.state.roundNumber;
+    const Round = this.state.roundNumber;
     rounds.forEach((round) => {
       const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
       const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
@@ -81,14 +86,30 @@ export default class App extends React.Component {
         dialog.showErrorBox('Error', `I did not find email addresses for ${AFF.Team} and ${NEG.Team}. Add some then try again.`);
         return;
       }
-      console.dir({
-        emails,
-        roundNumber,
-        AFF,
-        NEG,
-      });
+
+      const message = {
+        from: this.state.from,
+        to: emails,
+        /* SendGrid doesn't support reply-to multiple addresses:
+        https://github.com/sendgrid/sendgrid-csharp/issues/339 */
+        // replyTo: emails,
+        subject: this.state.subject,
+        html: this.state.body,
+        templateId: this.state.templateId,
+        substitutions: flat({
+          Round,
+          AFF,
+          NEG,
+        }),
+      };
+      console.log(message);
+
+      mail.setApiKey(this.state.sendgridKey);
+      mail.send(message);
+
+      // TODO: escape HTML on output
+      // TODO: report if e-mail fails
     });
-    console.log('Email ALL THE THINGS');
   }
 
   canSubmit() {
@@ -297,6 +318,17 @@ export default class App extends React.Component {
                     ? <span>I automatically saved your key.</span>
                     : <span>I won&apos;t be able to send email without it.</span>
                 }</small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="sendgrid-template-id">Sendgrid Template ID (optional)</label>
+                <input
+                  type="text"
+                  name="templateId"
+                  id="sendgrid-template-id"
+                  onChange={e => this.change(e)}
+                  value={this.state.templateId}
+                  className="form-control"
+                />
               </div>
             </ModalBody>
           </form>
