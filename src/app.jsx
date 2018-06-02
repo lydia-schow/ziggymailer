@@ -6,9 +6,9 @@ import csv from 'csv';
 import { remote } from 'electron';
 import React from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert } from 'reactstrap';
+import { find, mapValues, defaultsDeep } from 'lodash';
 
 const { dialog } = remote;
-const SENDGRID_KEY = 'form.sendgridKey';
 
 const error = (...args) => {
   console.error(...args);
@@ -22,26 +22,36 @@ const error = (...args) => {
   });
 };
 
+/* Regex source: http://emailregex.com/ */
+const isEmail = value => typeof value === 'string' && value.test(/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/);
+
 export default class App extends React.Component {
 
   constructor(...args) {
     super(...args);
 
-    this.state = {
-      form: Object.assign({
+    // Load defaults from the application state
+    this.state = defaultsDeep(
+      settings.get('state'),
+      {
+        sendgridKey: '',
         from: 'ziggyonlinedebate@gmail.com',
         replyTo: 'ziggyonlinedebate@gmail.com',
         body: 'Hello,\nYour debate round [roud] pairing is as follows:\nAffirmative [aff] vs. Negative [neg]',
         subject: 'Ziggy Debate - Postings',
         roundNumber: '1',
-        roundFile: '',
         teamFile: '',
-        sendgridKey: '',
-      }, settings.get('form')),
-      teamData: [],
-      roundData: [],
-      settingsIsOpen: !this.canSend(),
-    };
+        teamData: [],
+        roundFile: '',
+        roundData: [],
+        settingsIsOpen: true,
+      },
+    );
+    this.state.settingsIsOpen = this.state.sendgridKey.length === 0;
+  }
+
+  componentDidUpdate(props, state) {
+    settings.set('state', state);
   }
 
   submit (event) {
@@ -49,13 +59,39 @@ export default class App extends React.Component {
       event.preventDefault();
       event.stopPropagation();
     }
-
-    error('test error');
+    const rounds = this.state.roundData;
+    const teams = this.state.teamData;
+    const roundNumber = this.state.roundNumber;
+    rounds.forEach((round) => {
+      console.dir(round);
+      console.dir(teams);
+      const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
+      const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
+      if (!AFF) {
+        dialog.showErrorBox('Error', `Could not find AFF team ${round.AFF}. Make sure they match in the round and team file.`);
+        return;
+      }
+      if (!NEG) {
+        dialog.showErrorBox('Error', `Could not find NEG team ${round.NEG}. Make sure they match in the round and team file.`);
+        return;
+      }
+      /* extract all the email addresses from both teams */
+      const emails = mapValues(NEG).concat(mapValues(AFF)).filter(isEmail);
+      console.dir({
+        emails,
+        roundNumber,
+        AFF,
+        NEG,
+      });
+    });
     console.log('Email ALL THE THINGS');
   }
 
-  canSend() {
-    return !!settings.get(SENDGRID_KEY);
+  canSubmit() {
+    return this.state.sendgridKey
+      && this.state.sendgridKey.length > 0
+      && this.state.roundData.length > 0
+      && this.state.teamData.length > 0;
   }
 
   toggleSettings(event) {
@@ -66,26 +102,13 @@ export default class App extends React.Component {
     this.setState({ settingsIsOpen: !this.state.settingsIsOpen });
   }
 
-  submitSettings(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    settings.set(SENDGRID_KEY, this.state.form.sendgridKey);
-    this.toggleSettings();
-  }
-
   change(event) {
     const target = event.target;
     const value = target.type === 'checkbox' ? target.checked : target.value;
     const name = target.name;
-    settings.set(`form.${name}`, value);
     this.setState(state => ({
       ...state,
-      form: {
-        ...state.form,
-        [name]: value,
-      },
+      [name]: value,
     }));
   }
 
@@ -125,10 +148,7 @@ export default class App extends React.Component {
     }
     this.openFile('Team file', ({ data, filename }) => this.setState(state => ({
       ...state,
-      form: {
-        ...state.form,
-        teamFile: filename,
-      },
+      teamFile: filename,
       teamData: data,
     })));
   }
@@ -140,10 +160,7 @@ export default class App extends React.Component {
     }
     this.openFile('Round file', ({ data, filename }) => this.setState(state => ({
       ...state,
-      form: {
-        ...state.form,
-        roundFile: filename,
-      },
+      roundFile: filename,
       roundData: data,
     })));
     // TODO: throw an error if columns are missing
@@ -164,7 +181,7 @@ export default class App extends React.Component {
                   type="text"
                   id="from"
                   className="form-control"
-                  value={this.state.form.from}
+                  value={this.state.from}
                   onChange={e => this.change(e)}
                 />
               </div>
@@ -175,7 +192,7 @@ export default class App extends React.Component {
                   type="text"
                   id="reply-to"
                   className="form-control"
-                  value={this.state.form.replyTo}
+                  value={this.state.replyTo}
                   onChange={e => this.change(e)}
                 />
               </div>
@@ -188,7 +205,7 @@ export default class App extends React.Component {
                 type="text"
                 id="subject"
                 className="form-control"
-                value={this.state.form.subject}
+                value={this.state.subject}
                 onChange={e => this.change(e)}
               />
             </div>
@@ -200,7 +217,7 @@ export default class App extends React.Component {
                 id="message-body"
                 rows="8"
                 className="form-control"
-                value={this.state.form.body}
+                value={this.state.body}
                 onChange={e => this.change(e)}
               />
             </div>
@@ -214,7 +231,7 @@ export default class App extends React.Component {
                   type="number"
                   id="round-number"
                   className="form-control"
-                  value={this.state.form.roundNumber}
+                  value={this.state.roundNumber}
                   onChange={e => this.change(e)}
                 />
               </div>
@@ -229,7 +246,7 @@ export default class App extends React.Component {
                 >
                   Open
                 </button>
-                <p>{path.basename(this.state.form.roundFile)}</p>
+                <p>{path.basename(this.state.roundFile)}</p>
                 {this.state.roundData.length > 0 &&
                   <p>{this.state.roundData.length} room(s)</p>}
               </div>
@@ -244,15 +261,15 @@ export default class App extends React.Component {
                 >
                   Open
                 </button>
-                <p>{path.basename(this.state.form.teamFile)}</p>
+                <p>{path.basename(this.state.teamFile)}</p>
                 {this.state.teamData.length > 0 &&
                   <p>{this.state.teamData.length} teams(s)</p>}
               </div>
 
             </div>
 
-            <button className="btn btn-link btn-block" onClick={this.toggleSettings}>Settings</button>
-            <button type="submit" className="btn btn-primary btn-block" disabled={!this.canSend()}>Send Emails</button>
+            <button className="btn btn-link btn-block" onClick={e => this.toggleSettings(e)}>Settings</button>
+            <button type="submit" className="btn btn-primary btn-block" disabled={!this.canSubmit()}>Send Emails</button>
           </form>
         </div>
 
@@ -268,16 +285,16 @@ export default class App extends React.Component {
                   name="sendgridKey"
                   id="sendgrid-key"
                   onChange={e => this.change(e)}
-                  value={this.state.form.sendgridKey}
+                  value={this.state.sendgridKey}
                   className="form-control"
                 />
-                <small className="help-text">I won&apos;t be able to send email without it.</small>
+                <small className="help-text">{
+                  this.canSubmit()
+                    ? <span>I automatically saved your key.</span>
+                    : <span>I won&apos;t be able to send email without it.</span>
+                }</small>
               </div>
             </ModalBody>
-            <ModalFooter>
-              <Button color="link" onClick={e => this.toggleSettings(e)}>Cancel</Button>
-              <Button color="primary" type="submit">Set Key</Button>{' '}
-            </ModalFooter>
           </form>
         </Modal>
 
