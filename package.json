@@ -49,33 +49,33 @@
   },
   "dependencies": {
     "@sendgrid/mail": "^6.2.1",
-    "bootstrap": "^4.1.0",
+    "bootstrap": "^4.1.1",
     "csv": "^3.1.0",
     "electron-compile": "^6.4.2",
-    "electron-devtools-installer": "^2.1.0",
-    "electron-settings": "^3.1.4",
+    "electron-devtools-installer": "^2.2.4",
+    "electron-settings": "^3.2.0",
     "electron-squirrel-startup": "^1.0.0",
     "flat": "^4.0.0",
     "jquery": "^3.3.1",
     "lodash": "^4.17.10",
     "popper.js": "^1.14.3",
-    "react": "^15.4.1",
-    "react-dom": "^15.4.1",
-    "react-hot-loader": "^3.0.0-beta.6",
-    "reactstrap": "^5.0.0-beta.3"
+    "react": "^16.4.0",
+    "react-dom": "^16.4.0",
+    "react-hot-loader": "^4.2.0",
+    "reactstrap": "^6.0.1"
   },
   "devDependencies": {
     "babel-plugin-transform-async-to-generator": "^6.24.1",
     "babel-plugin-transform-es2015-classes": "^6.24.1",
-    "babel-preset-env": "^1.6.1",
+    "babel-preset-env": "^1.7.0",
     "babel-preset-react": "^6.24.1",
     "babel-preset-stage-2": "^6.24.1",
-    "electron-forge": "^5.2.0",
-    "electron-prebuilt-compile": "1.8.4",
-    "eslint": "^3",
-    "eslint-config-airbnb": "^15",
-    "eslint-plugin-import": "^2",
-    "eslint-plugin-jsx-a11y": "^5",
-    "eslint-plugin-react": "^7"
+    "electron-forge": "^5.2.2",
+    "electron-prebuilt-compile": "2.0.2",
+    "eslint": "^4.19.1",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.12.0",
+    "eslint-plugin-jsx-a11y": "^6.0.3",
+    "eslint-plugin-react": "^7.8.2"
   }
 }
