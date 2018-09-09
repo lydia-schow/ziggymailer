@@ -1,4 +1,18 @@
-// TODO: reset settings to defaults (except sendgrid and template key)
+/*
+✓ Feedback (error, success)
+○ Copy and paste
+○ HTML
+
+○ Ziggy app icon
+○ Move "settings" button to a better place
+○ Show success/failure for individual messages
+○ Show sendgrid status for individual messages
+○ Cancel submissions that are taking a long time
+○ Security https://electronjs.org/docs/tutorial/security
+○ Upgrade to latest node version
+○ Fix jsx-a11y warnings
+○ reset settings to defaults (except sendgrid and template key)
+*/
 
 import settings from 'electron-settings';
 import fs from 'fs';
@@ -7,12 +21,21 @@ import path from 'path';
 import csv from 'csv';
 import { remote } from 'electron';
 import React from 'react';
-import { Modal, ModalHeader, ModalBody, UncontrolledAlert } from 'reactstrap';
+import { UncontrolledAlert, Modal, ModalHeader, ModalBody } from 'reactstrap';
 import { find, values, defaultsDeep, uniq } from 'lodash';
 import mail from '@sendgrid/mail';
 import flat from 'flat';
 
 const { dialog } = remote;
+
+// Create a promise that resolves in <ms> milliseconds
+const timeout = ms =>
+  new Promise((resolve, reject) => {
+    const id = setTimeout(() => {
+      clearTimeout(id);
+      resolve(new Error(`Timed out in ${ms} ms.`));
+    }, ms);
+  });
 
 /* Regex source: http://emailregex.com/ */
 const emailRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -92,59 +115,66 @@ export default class App extends React.Component {
   submit(event) {
     this.setState(state => ({ ...state, status: 'loading' }));
 
-    try {
-      if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      const rounds = this.state.roundData;
-      const teams = this.state.teamData;
-      const Round = this.state.roundNumber;
-      rounds.forEach((round) => {
-        const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
-        const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
-        if (!AFF) {
-          dialog.showErrorBox('Error', `Could not find AFF team ${round.AFF}. Make sure they match in the round and team file.`);
-          return;
-        }
-        if (!NEG) {
-          dialog.showErrorBox('Error', `Could not find NEG team ${round.NEG}. Make sure they match in the round and team file.`);
-          return;
-        }
-
-        /* Extract all unique email addresses from both teams */
-        const emails = uniq(values(NEG).concat(values(AFF)).filter(isEmail));
-        if (emails.length === 0) {
-          dialog.showErrorBox('Error', `I did not find email addresses for ${AFF.Team} and ${NEG.Team}. Add some then try again.`);
-          return;
-        }
-
-        const message = {
-          from: this.state.from,
-          to: emails,
-          /* SendGrid doesn't support reply-to multiple addresses:
-          https://github.com/sendgrid/sendgrid-csharp/issues/339 */
-          // replyTo: emails,
-          subject: this.state.subject,
-          html: this.state.body,
-          templateId: this.state.templateId,
-          substitutions: flat({
-            Round,
-            AFF,
-            NEG,
-          }),
-        };
-
-        mail.setApiKey(this.state.sendgridKey);
-        mail.send(message);
-      });
-    } catch (error) {
-      this.setState(state => ({
-        ...state,
-        status: 'loading',
-        error,
-      }));
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
+    const rounds = this.state.roundData;
+    const teams = this.state.teamData;
+    const Round = this.state.roundNumber;
+    const roundPromises = rounds.map((round) => {
+      const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
+      const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
+      if (!AFF) {
+        return Promise.reject(new Error(`Could not find AFF team ${round && round.AFF}. Make sure they match in the round and team file.`));
+      }
+      if (!NEG) {
+        return Promise.reject(new Error(`Could not find NEG team ${round && round.NEG}. Make sure they match in the round and team file.`));
+      }
+
+      /* Extract all unique email addresses from both teams */
+      const emails = uniq(values(NEG).concat(values(AFF)).filter(isEmail));
+      if (emails.length === 0) {
+        return Promise.rejeect(new Error(`I did not find email addresses for ${AFF && AFF.Team} and ${NEG && NEG.Team}. Add some then try again.`));
+      }
+
+      const message = {
+        from: this.state.from,
+        to: emails,
+        /* SendGrid doesn't support reply-to multiple addresses:
+        https://github.com/sendgrid/sendgrid-csharp/issues/339 */
+        // replyTo: emails,
+        subject: this.state.subject,
+        html: this.state.body,
+        templateId: this.state.templateId,
+        substitutions: flat({
+          Round,
+          AFF,
+          NEG,
+        }),
+      };
+
+      mail.setApiKey(this.state.sendgridKey);
+      return mail.send(message);
+      // return timeout(100000); // this is for testing without spamming the API
+    });
+
+    Promise.all(roundPromises)
+      .then((success) => {
+        this.setState(state => ({
+          ...state,
+          status: 'success',
+          success,
+        }));
+      })
+      .catch((error) => {
+        this.setState(state => ({
+          ...state,
+          status: 'error',
+          error,
+        }));
+        App.log(error);
+      });
   }
 
   canSubmit() {
@@ -194,6 +224,22 @@ export default class App extends React.Component {
       roundData: data,
     })));
     // TODO: throw an error if columns are missing
+  }
+
+  isIdle() {
+    return this.state.status === 'idle';
+  }
+
+  isLoading() {
+    return this.state.status === 'loading';
+  }
+
+  isError() {
+    return this.state.status === 'error';
+  }
+
+  isSuccess() {
+    return this.state.status === 'success';
   }
 
   render() {
@@ -299,7 +345,21 @@ export default class App extends React.Component {
             </div>
 
             <button className="btn btn-link btn-block" onClick={e => this.toggleSettings(e)}>Settings</button>
-            <button type="submit" className="btn btn-primary btn-block" disabled={!this.canSubmit()}>Send Emails</button>
+            <button type="submit" className="btn btn-primary btn-block" disabled={!this.canSubmit() || this.isLoading()}>
+              Send Emails
+              &nbsp;{this.isLoading() && <div className="loader" />}
+            </button>
+            {this.isError() &&
+              <UncontrolledAlert color="danger">
+                <strong>I had a problem</strong>
+                {(this.state.error && `: ${this.state.error.message}`) || ', but I don\'t know what it was 🤔'}
+              </UncontrolledAlert>}
+            {this.isSuccess() &&
+              <UncontrolledAlert color="success">
+                <strong>I sent {this.state.success.length} emails. </strong>
+                Check your sendgrid dashboard for more details.
+              </UncontrolledAlert>
+            }
           </form>
         </div>
 
