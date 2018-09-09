@@ -7,30 +7,58 @@ import path from 'path';
 import csv from 'csv';
 import { remote } from 'electron';
 import React from 'react';
-import { Button, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert } from 'reactstrap';
+import { Modal, ModalHeader, ModalBody, UncontrolledAlert } from 'reactstrap';
 import { find, values, defaultsDeep, uniq } from 'lodash';
 import mail from '@sendgrid/mail';
 import flat from 'flat';
 
 const { dialog } = remote;
 
-const error = (...args) => {
-  console.error(...args);
-  /* `EOL` stands for `end of line`. I'm using it because Windows and Unix use
-  different line endings */
-  const date = Date.now().toString();
-  const message = [...args].join(' ');
-  const data = `${date} - ${message}${EOL}`;
-  fs.appendFile('error.log', data, (_error) => {
-    if (_error) console.error('Couldn\'t write error log.');
-  });
-};
-
 /* Regex source: http://emailregex.com/ */
 const emailRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 const isEmail = value => emailRegex.test(value);
 
 export default class App extends React.Component {
+  static openFile(title = 'Open file', callback) {
+    const options = {
+      title,
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    };
+    dialog.showOpenDialog(options, (filenames) => {
+      if (!filenames) return;
+      const filename = filenames[0];
+      fs.readFile(filename, (error, rawData) => {
+        if (error) {
+          dialog.showErrorBox('I had trouble opening the file.', error);
+          App.log(error);
+          return;
+        }
+        /* Auto-detect columns http://csv.adaltas.com/parse/ */
+        const parseOptions = { columns: true };
+        const parseCallback = (_error, data) => {
+          if (_error) {
+            dialog.showErrorBox('I had trouble parsing the file. It might not be a valid CSV.', _error);
+            App.log(error);
+            return;
+          }
+          callback({ data, filename });
+        };
+        csv.parse(rawData, parseOptions, parseCallback);
+      });
+    });
+  }
+
+  static log(...args) {
+    console.error(...args);
+    /* `EOL` stands for `end of line`. I'm using it because Windows and Unix use
+    different line endings */
+    const date = Date.now().toString();
+    const message = [...args].join(' ');
+    const data = `${date} - ${message}${EOL}`;
+    fs.appendFile('error.log', data, (_error) => {
+      if (_error) console.error('Couldn\'t write error log.');
+    });
+  }
 
   constructor(...args) {
     super(...args);
@@ -54,6 +82,7 @@ export default class App extends React.Component {
       },
     );
     this.state.settingsIsOpen = this.state.sendgridKey.length === 0;
+    this.state.status = 'idle'; // "idle" | "loading" | "success" | "error"
   }
 
   componentDidUpdate(props, state) {
@@ -61,55 +90,61 @@ export default class App extends React.Component {
   }
 
   submit(event) {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
+    this.setState(state => ({ ...state, status: 'loading' }));
+
+    try {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      const rounds = this.state.roundData;
+      const teams = this.state.teamData;
+      const Round = this.state.roundNumber;
+      rounds.forEach((round) => {
+        const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
+        const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
+        if (!AFF) {
+          dialog.showErrorBox('Error', `Could not find AFF team ${round.AFF}. Make sure they match in the round and team file.`);
+          return;
+        }
+        if (!NEG) {
+          dialog.showErrorBox('Error', `Could not find NEG team ${round.NEG}. Make sure they match in the round and team file.`);
+          return;
+        }
+
+        /* Extract all unique email addresses from both teams */
+        const emails = uniq(values(NEG).concat(values(AFF)).filter(isEmail));
+        if (emails.length === 0) {
+          dialog.showErrorBox('Error', `I did not find email addresses for ${AFF.Team} and ${NEG.Team}. Add some then try again.`);
+          return;
+        }
+
+        const message = {
+          from: this.state.from,
+          to: emails,
+          /* SendGrid doesn't support reply-to multiple addresses:
+          https://github.com/sendgrid/sendgrid-csharp/issues/339 */
+          // replyTo: emails,
+          subject: this.state.subject,
+          html: this.state.body,
+          templateId: this.state.templateId,
+          substitutions: flat({
+            Round,
+            AFF,
+            NEG,
+          }),
+        };
+
+        mail.setApiKey(this.state.sendgridKey);
+        mail.send(message);
+      });
+    } catch (error) {
+      this.setState(state => ({
+        ...state,
+        status: 'loading',
+        error,
+      }));
     }
-    const rounds = this.state.roundData;
-    const teams = this.state.teamData;
-    const Round = this.state.roundNumber;
-    rounds.forEach((round) => {
-      const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
-      const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
-      if (!AFF) {
-        dialog.showErrorBox('Error', `Could not find AFF team ${round.AFF}. Make sure they match in the round and team file.`);
-        return;
-      }
-      if (!NEG) {
-        dialog.showErrorBox('Error', `Could not find NEG team ${round.NEG}. Make sure they match in the round and team file.`);
-        return;
-      }
-
-      /* Extract all unique email addresses from both teams */
-      const emails = uniq(values(NEG).concat(values(AFF)).filter(isEmail));
-      if (emails.length === 0) {
-        dialog.showErrorBox('Error', `I did not find email addresses for ${AFF.Team} and ${NEG.Team}. Add some then try again.`);
-        return;
-      }
-
-      const message = {
-        from: this.state.from,
-        to: emails,
-        /* SendGrid doesn't support reply-to multiple addresses:
-        https://github.com/sendgrid/sendgrid-csharp/issues/339 */
-        // replyTo: emails,
-        subject: this.state.subject,
-        html: this.state.body,
-        templateId: this.state.templateId,
-        substitutions: flat({
-          Round,
-          AFF,
-          NEG,
-        }),
-      };
-      console.log(message);
-
-      mail.setApiKey(this.state.sendgridKey);
-      mail.send(message);
-
-      // TODO: escape HTML on output
-      // TODO: report if e-mail fails
-    });
   }
 
   canSubmit() {
@@ -128,42 +163,12 @@ export default class App extends React.Component {
   }
 
   change(event) {
-    const target = event.target;
+    const { target, name } = event;
     const value = target.type === 'checkbox' ? target.checked : target.value;
-    const name = target.name;
     this.setState(state => ({
       ...state,
       [name]: value,
     }));
-  }
-
-  openFile(title = 'Open file', callback) {
-    const options = {
-      title,
-      filters: [{ name: 'CSV', extensions: ['csv'] }],
-    };
-    dialog.showOpenDialog(options, (filenames) => {
-      if (!filenames) return;
-      const filename = filenames[0];
-      fs.readFile(filename, (error, rawData) => {
-        if (error) {
-          dialog.showErrorBox('I had trouble opening the file.', error);
-          error(error);
-          return;
-        }
-        /* Auto-detect columns http://csv.adaltas.com/parse/ */
-        const parseOptions = { columns: true };
-        const parseCallback = (_error, data) => {
-          if (_error) {
-            dialog.showErrorBox('I had trouble parsing the file. It might not be a valid CSV.', _error);
-            error(error);
-            return;
-          }
-          callback({ data, filename });
-        };
-        csv.parse(rawData, parseOptions, parseCallback);
-      });
-    });
   }
 
   openTeamFile(event) {
@@ -171,7 +176,7 @@ export default class App extends React.Component {
       event.preventDefault();
       event.stopPropagation();
     }
-    this.openFile('Team file', ({ data, filename }) => this.setState(state => ({
+    App.openFile('Team file', ({ data, filename }) => this.setState(state => ({
       ...state,
       teamFile: filename,
       teamData: data,
@@ -183,7 +188,7 @@ export default class App extends React.Component {
       event.preventDefault();
       event.stopPropagation();
     }
-    this.openFile('Round file', ({ data, filename }) => this.setState(state => ({
+    App.openFile('Round file', ({ data, filename }) => this.setState(state => ({
       ...state,
       roundFile: filename,
       roundData: data,
@@ -313,11 +318,12 @@ export default class App extends React.Component {
                   value={this.state.sendgridKey}
                   className="form-control"
                 />
-                <small className="help-text">{
-                  this.canSubmit()
+                <small className="help-text">
+                  {this.canSubmit()
                     ? <span>I automatically saved your key.</span>
                     : <span>I won&apos;t be able to send email without it.</span>
-                }</small>
+                  }
+                </small>
               </div>
               <div className="form-group">
                 <label htmlFor="sendgrid-template-id">Sendgrid Template ID (optional)</label>
@@ -337,5 +343,4 @@ export default class App extends React.Component {
       </div>
     );
   }
-
 }
