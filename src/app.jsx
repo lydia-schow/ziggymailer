@@ -26,7 +26,51 @@ import { find, values, defaultsDeep, uniq } from 'lodash';
 import mail from '@sendgrid/mail';
 import flat from 'flat';
 
-const { dialog } = remote;
+const { dialog, Menu } = remote;
+
+/**
+ * Add context menus to all inputs
+ * source: https://github.com/electron/electron/issues/4068#issuecomment-170911307
+ */
+const InputMenu = Menu.buildFromTemplate([{
+  label: 'Undo',
+  role: 'undo',
+}, {
+  label: 'Redo',
+  role: 'redo',
+}, {
+  type: 'separator',
+}, {
+  label: 'Cut',
+  role: 'cut',
+}, {
+  label: 'Copy',
+  role: 'copy',
+}, {
+  label: 'Paste',
+  role: 'paste',
+}, {
+  type: 'separator',
+}, {
+  label: 'Select all',
+  role: 'selectall',
+},
+]);
+
+document.body.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  let node = e.target;
+
+  while (node) {
+    if (node.nodeName.match(/^(input|textarea)$/i) || node.isContentEditable) {
+      InputMenu.popup(remote.getCurrentWindow());
+      break;
+    }
+    node = node.parentNode;
+  }
+});
 
 // Create a promise that resolves in <ms> milliseconds
 const timeout = ms =>
