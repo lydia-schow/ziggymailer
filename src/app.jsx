@@ -25,6 +25,8 @@ import { UncontrolledAlert, Modal, ModalHeader, ModalBody } from 'reactstrap';
 import { find, values, defaultsDeep, uniq } from 'lodash';
 import mail from '@sendgrid/mail';
 import flat from 'flat';
+import SimpleMDEReact from 'react-simplemde-editor';
+import marked from 'marked';
 
 const { dialog, Menu } = remote;
 
@@ -167,40 +169,47 @@ export default class App extends React.Component {
     const teams = this.state.teamData;
     const Round = this.state.roundNumber;
     const roundPromises = rounds.map((round) => {
-      const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
-      const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
-      if (!AFF) {
-        return Promise.reject(new Error(`Could not find AFF team ${round && round.AFF}. Make sure they match in the round and team file.`));
-      }
-      if (!NEG) {
-        return Promise.reject(new Error(`Could not find NEG team ${round && round.NEG}. Make sure they match in the round and team file.`));
-      }
+      try {
+        const AFF = find(teams, ({ Team }) => Team && Team === round.AFF);
+        const NEG = find(teams, ({ Team }) => Team && Team === round.NEG);
+        if (!AFF) {
+          return Promise.reject(new Error(`Could not find AFF team ${round && round.AFF}. Make sure they match in the round and team file.`));
+        }
+        if (!NEG) {
+          return Promise.reject(new Error(`Could not find NEG team ${round && round.NEG}. Make sure they match in the round and team file.`));
+        }
 
-      /* Extract all unique email addresses from both teams */
-      const emails = uniq(values(NEG).concat(values(AFF)).filter(isEmail));
-      if (emails.length === 0) {
-        return Promise.rejeect(new Error(`I did not find email addresses for ${AFF && AFF.Team} and ${NEG && NEG.Team}. Add some then try again.`));
+        /* Extract all unique email addresses from both teams */
+        const emails = uniq(values(NEG).concat(values(AFF)).filter(isEmail));
+        if (emails.length === 0) {
+          return Promise.rejeect(new Error(`I did not find email addresses for ${AFF && AFF.Team} and ${NEG && NEG.Team}. Add some then try again.`));
+        }
+
+        /* Convert markdown to HTML */
+        const html = marked(this.state.body);
+
+        const message = {
+          from: this.state.from,
+          to: emails,
+          /* SendGrid doesn't support reply-to multiple addresses:
+          https://github.com/sendgrid/sendgrid-csharp/issues/339 */
+          // replyTo: emails,
+          subject: this.state.subject,
+          html,
+          templateId: this.state.templateId,
+          substitutions: flat({
+            Round,
+            AFF,
+            NEG,
+          }),
+        };
+
+        mail.setApiKey(this.state.sendgridKey);
+        return mail.send(message);
+        // return timeout(100000); // this is for testing without spamming the API
+      } catch (error) {
+        return Promise.reject(error);
       }
-
-      const message = {
-        from: this.state.from,
-        to: emails,
-        /* SendGrid doesn't support reply-to multiple addresses:
-        https://github.com/sendgrid/sendgrid-csharp/issues/339 */
-        // replyTo: emails,
-        subject: this.state.subject,
-        html: this.state.body,
-        templateId: this.state.templateId,
-        substitutions: flat({
-          Round,
-          AFF,
-          NEG,
-        }),
-      };
-
-      mail.setApiKey(this.state.sendgridKey);
-      return mail.send(message);
-      // return timeout(100000); // this is for testing without spamming the API
     });
 
     Promise.all(roundPromises)
@@ -332,14 +341,15 @@ export default class App extends React.Component {
             </div>
 
             <div className="form-group">
-              <label htmlFor="message-body">Body</label>
-              <textarea
+              <SimpleMDEReact
                 name="body"
+                label="Body"
                 id="message-body"
-                rows="8"
-                className="form-control"
                 value={this.state.body}
-                onChange={e => this.change(e)}
+                onChange={value => this.setState(state => ({
+                  ...state,
+                  body: value,
+                }))}
               />
             </div>
 
