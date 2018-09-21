@@ -237,8 +237,9 @@ export default class App extends React.Component {
   }
 
   change(event) {
-    const { target, name } = event;
+    const target = event.currentTarget;
     const value = target.type === 'checkbox' ? target.checked : target.value;
+    const name = target.name;
     this.setState(state => ({
       ...state,
       [name]: value,
@@ -298,7 +299,7 @@ export default class App extends React.Component {
                 <label htmlFor="from">From</label>
                 <input
                   name="from"
-                  type="text"
+                  type="email"
                   id="from"
                   className="form-control"
                   value={this.state.from}
@@ -309,7 +310,7 @@ export default class App extends React.Component {
                 <label htmlFor="reply-to">Reply to</label>
                 <input
                   name="replyTo"
-                  type="text"
+                  type="email"
                   id="reply-to"
                   className="form-control"
                   value={this.state.replyTo}
