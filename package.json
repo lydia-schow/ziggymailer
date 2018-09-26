@@ -65,7 +65,8 @@
     "react-hot-loader": "^4.2.0",
     "react-simplemde-editor": "^3.6.16",
     "reactstrap": "^6.0.1",
-    "simplemde": "^1.11.2"
+    "simplemde": "^1.11.2",
+    "babel-runtime": "^6.26.0"
   },
   "devDependencies": {
     "babel-plugin-transform-async-to-generator": "^6.24.1",

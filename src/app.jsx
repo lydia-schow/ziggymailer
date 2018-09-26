@@ -1,7 +1,7 @@
 /*
 ✓ Feedback (error, success)
-○ Copy and paste
-○ HTML
+✓ Copy and paste
+✓ HTML
 
 ○ Ziggy app icon
 ○ Move "settings" button to a better place
