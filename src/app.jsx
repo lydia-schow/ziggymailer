@@ -66,22 +66,16 @@ document.body.addEventListener('contextmenu', (e) => {
   let node = e.target;
 
   while (node) {
-    if (node.nodeName.match(/^(input|textarea)$/i) || node.isContentEditable) {
+    if (node.nodeName.match(/^(input|textarea)$/i)
+      || node.isContentEditable
+      // Enable context menu on SimpleMDE
+      || (node.classList && [...node.classList].includes('CodeMirror'))) {
       InputMenu.popup(remote.getCurrentWindow());
       break;
     }
     node = node.parentNode;
   }
 });
-
-// Create a promise that resolves in <ms> milliseconds
-const timeout = ms =>
-  new Promise((resolve, reject) => {
-    const id = setTimeout(() => {
-      clearTimeout(id);
-      resolve(new Error(`Timed out in ${ms} ms.`));
-    }, ms);
-  });
 
 /* Regex source: http://emailregex.com/ */
 const emailRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
