@@ -1,7 +1,7 @@
 {
   "name": "ziggymailer",
   "productName": "Ziggy Mailer",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Automate e-mail postings for an online debate tournament.",
   "main": "src/index.js",
   "scripts": {

@@ -135,11 +135,15 @@ export default class App extends React.Component {
     console.error(...args);
     /* `EOL` stands for `end of line`. I'm using it because Windows and Unix use
     different line endings */
-    const date = Date.now().toString();
-    const stringified = [...args].map(JSON.stringify);
-    const message = [...stringified].join(' ');
+    const date = (new Date()).toString();
+    const message = [...args]
+      .map(error => `${error.message} - ${JSON.stringify(error)}`)
+      .join(' ');
     const data = `${date} - ${message}${EOL}`;
-    fs.appendFile('error.log', data, (_error) => {
+    const filename = process.env.NODE_ENV === 'production'
+      ? path.join(remote.app.getPath('userData'), 'error.log')
+      : 'error.log';
+    fs.appendFile(filename, data, (_error) => {
       if (_error) console.error('Couldn\'t write error log.');
     });
   }
