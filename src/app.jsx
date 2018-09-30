@@ -30,6 +30,26 @@ import marked from 'marked';
 
 const { dialog, Menu } = remote;
 
+const DEFAULT_SETTINGS = {
+  sendgridKey: '',
+  from: 'ziggyonlinedebate@gmail.com',
+  replyTo: 'ziggyonlinedebate@gmail.com',
+  body: `Hello,
+  
+Your debate round {{Round}} pairing is as follows:
+
+Affirmative **{{AFF.Team}}** vs. Negative **{{NEG.Team}}**
+`,
+  subject: 'Ziggy Debate - Postings',
+  roundNumber: '1',
+  teamFile: '',
+  teamData: [],
+  roundFile: '',
+  roundData: [],
+  settingsIsOpen: true,
+  templateId: '',
+};
+
 /**
  * Add context menus to all inputs
  * source: https://github.com/electron/electron/issues/4068#issuecomment-170911307
@@ -116,7 +136,8 @@ export default class App extends React.Component {
     /* `EOL` stands for `end of line`. I'm using it because Windows and Unix use
     different line endings */
     const date = Date.now().toString();
-    const message = [...args].join(' ');
+    const stringified = [...args].map(JSON.stringify);
+    const message = [...stringified].join(' ');
     const data = `${date} - ${message}${EOL}`;
     fs.appendFile('error.log', data, (_error) => {
       if (_error) console.error('Couldn\'t write error log.');
@@ -129,20 +150,7 @@ export default class App extends React.Component {
     // Load defaults from the application state
     this.state = defaultsDeep(
       settings.get('state'),
-      {
-        sendgridKey: '',
-        from: 'ziggyonlinedebate@gmail.com',
-        replyTo: 'ziggyonlinedebate@gmail.com',
-        body: '<p>Hello,</p><p>Your debate round {{Round}} pairing is as follows:</p><p>Affirmative {{AFF.Team}} vs. Negative {{NEG.Team}}</p>',
-        subject: 'Ziggy Debate - Postings',
-        roundNumber: '1',
-        teamFile: '',
-        teamData: [],
-        roundFile: '',
-        roundData: [],
-        settingsIsOpen: true,
-        templateId: 'c4ca7f9b-e077-4cd9-a4b3-ebf8752c1879',
-      },
+      DEFAULT_SETTINGS,
     );
     this.state.settingsIsOpen = this.state.sendgridKey.length === 0;
     this.state.status = 'idle'; // "idle" | "loading" | "success" | "error"
@@ -150,6 +158,28 @@ export default class App extends React.Component {
 
   componentDidUpdate(props, state) {
     settings.set('state', state);
+  }
+
+  resetSettings(event) {
+    if (event && event.preventDefault) {
+      event.preventDefault();
+    }
+    dialog.showMessageBox(
+      remote.getCurrentWindow(),
+      {
+        type: 'question',
+        buttons: ['Yes', 'No'],
+        title: 'Confirm',
+        message: 'Shoud I reset everything? This includes all settings, the subject line, and your artisnal, hand-crafted message body.',
+      },
+      (response) => {
+        // if the "yes" button was clicked
+        if (response === 0) {
+          this.setState(DEFAULT_SETTINGS);
+          settings.set('state', DEFAULT_SETTINGS);
+        }
+      },
+    );
   }
 
   submit(event) {
@@ -190,13 +220,16 @@ export default class App extends React.Component {
           // replyTo: emails,
           subject: this.state.subject,
           html,
-          templateId: this.state.templateId,
           substitutions: flat({
             Round,
             AFF,
             NEG,
           }),
         };
+
+        if (this.state.templateId && this.state.templateId.length > 0) {
+          message.templateId = this.state.templateId;
+        }
 
         mail.setApiKey(this.state.sendgridKey);
         return mail.send(message);
@@ -416,7 +449,6 @@ export default class App extends React.Component {
           <form onSubmit={this.submitSettings}>
             <ModalHeader toggle={e => this.toggleSettings(e)}>Settings</ModalHeader>
             <ModalBody>
-              {this.state.error && <UncontrolledAlert color="danger">{this.state.error}</UncontrolledAlert>}
               <div className="form-group">
                 <label htmlFor="sendgrid-key">Sendgrid API Key</label>
                 <input
@@ -445,6 +477,7 @@ export default class App extends React.Component {
                   className="form-control"
                 />
               </div>
+              <button className="btn btn-danger" type="button" onClick={e => this.resetSettings(e)}>Reset everything</button>
             </ModalBody>
           </form>
         </Modal>
